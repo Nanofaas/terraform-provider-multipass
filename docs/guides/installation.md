@@ -103,3 +103,28 @@ On macOS use `shasum -a 256 -c` with the checksum entries for the files you
 downloaded. A valid signature alone does not establish trust in an unknown key.
 Each platform ZIP includes the provider and `multipass-doctor`; the host-tools
 archive is platform-independent and runs only on supported Linux servers.
+
+## Multipass 1.17 launch concurrency
+
+On the tested Linux ARM64 host, simultaneous launches intermittently failed
+with `qemu-img: Permission denied`. The daemon logs showed the shared
+`multipass.qemu-img` AppArmor profile being replaced for the other instance.
+The same two-VM test passed with serial operations. Keep AppArmor enabled and
+use `tofu apply -parallelism=1` and `tofu destroy -parallelism=1` on affected
+hosts. This serializes one OpenTofu process; coordinate other clients separately.
+The provider does not retry uncertain VM creation or change host security policy.
+
+## Host reboot on the tested ARM64 system
+
+The managed bridge and its address survived the host reboot. Automatic VM resume
+failed inside QEMU 10.0.3 with `Failed to put registers after init: Invalid argument`
+while loading the suspend state; Multipass 1.17.0 still reported the VMs as
+Running despite their QEMU processes having exited. Do not treat that status as
+a guest readiness check. The provider cannot guarantee automatic resume on this
+host. See the [verification record](../superpowers/verification/2026-11-02-host-hardening.md)
+for recovery and persistence results; the provider does not modify QEMU/AppArmor
+or add host boot services.
+
+The same host also reset its iptables FORWARD policy on boot. Configure and verify
+firewall persistence administratively; the provider and helper do not persist
+firewall rules. If nft and legacy tables coexist, inspect both separately.

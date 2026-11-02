@@ -13,7 +13,7 @@ host key and configure key/agent authentication first.
 ```sh
 tofu init
 tofu plan -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
-tofu apply -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
+tofu apply -parallelism=1 -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
 ```
 
 Choose a `subnet` that does not overlap existing server networks/routes.
@@ -31,7 +31,7 @@ Accessing private IPs from your workstation requires routing or a separate SSH
 tunnel; creating and managing the VMs does not require that routing.
 
 ```sh
-tofu destroy -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
+tofu destroy -parallelism=1 -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
 ```
 
 Destroy removes the two owned VMs before the bridge. External bridge ports
