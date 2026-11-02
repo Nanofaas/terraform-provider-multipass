@@ -3,9 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
 )
 
 func readSSHConfig(c providerConfigModel, allowUnknown bool) (*sshclient.Config, error) {

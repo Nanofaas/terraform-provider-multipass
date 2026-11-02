@@ -3,8 +3,8 @@ package provider
 import (
 	"bytes"
 	"context"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
 	"os"
 	"path/filepath"
 	"testing"

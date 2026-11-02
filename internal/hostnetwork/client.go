@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
 	"net/netip"
 	"regexp"
+
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 )
 
 //go:embed scripts/bridge.py
@@ -98,11 +99,17 @@ func (c *Client) call(ctx context.Context, action string, b *Bridge) (*Bridge, e
 	if err := json.Unmarshal(out, &result); err != nil {
 		return b, fmt.Errorf("invalid network helper response: %w", err)
 	}
+	if result.Bridge != nil && (result.Bridge.ID != b.ID || !bridgeName.MatchString(result.Bridge.Name)) {
+		return b, fmt.Errorf("invalid network helper response: bridge identity mismatch")
+	}
 	if result.Error != "" {
 		return result.Bridge, errors.New(result.Error)
 	}
 	if result.Missing {
 		return nil, ErrNotFound
+	}
+	if action != "delete" && result.Bridge == nil {
+		return b, fmt.Errorf("invalid network helper response: bridge is missing")
 	}
 	return result.Bridge, nil
 }

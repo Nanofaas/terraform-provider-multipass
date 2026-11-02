@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 	"regexp"
 	"runtime"
 	"strings"
@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 )
 
 const (

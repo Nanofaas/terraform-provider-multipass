@@ -2,7 +2,7 @@ package multipasscli
 
 import (
 	"context"
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
 	"os"
 	"os/exec"
 	"path/filepath"

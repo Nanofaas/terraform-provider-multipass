@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 )
 
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
@@ -24,7 +24,7 @@ const testProviderConfig = `
 terraform {
   required_providers {
     multipass = {
-      source = "registry.terraform.io/todoroff/multipass"
+      source = "registry.opentofu.org/nanofaas/multipass"
     }
   }
 }

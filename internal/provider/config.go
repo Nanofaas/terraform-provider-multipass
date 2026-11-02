@@ -1,12 +1,12 @@
 package provider
 
 import (
-	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 )
 
 type providerConfigModel struct {

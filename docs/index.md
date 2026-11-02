@@ -15,7 +15,7 @@ For Pulumi, see the [Pulumi guide](guides/pulumi.md) and [TypeScript/Python exam
 terraform {
   required_providers {
     multipass = {
-      source  = "todoroff/multipass"
+      source  = "registry.opentofu.org/nanofaas/multipass"
     }
   }
 }
@@ -62,3 +62,15 @@ Use `server_address` and Terraform provider aliases to manage multiple hosts. Th
 the connection. Host keys must be trusted beforehand. The server must already
 have Multipass installed and authorized for the SSH user. See the
 [remote host guide](guides/remote-hosts.md).
+
+## Nanofaas SSH and network additions
+
+`ssh_host` runs the remote Linux Multipass CLI over verified OpenSSH; optional
+settings are `ssh_user`, `ssh_port`, `ssh_identity_file`, `ssh_known_hosts_file`.
+The workstation does not need Multipass in this mode. `multipass_network`
+manages persistent NetworkManager private bridges; it requires Python 3,
+iproute2 and noninteractive sudo on the host. Keep physical interfaces and
+unowned resources unchanged. See the network resource documentation and the
+`examples/ssh-private-network` example. Static IPs use existing cloud-init;
+complete isolation, DHCP/DNS/NAT and recursive SSH transfers are out of scope.
+Nanofaas registry publication is pending; use the README local mirror setup.

@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 )
 
 var (

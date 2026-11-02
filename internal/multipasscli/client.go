@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
-	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 )
 
 var missingInstance = regexp.MustCompile(`(?i)(instance|snapshot) [^\n]+ (does not exist|not found)`)
@@ -155,6 +155,10 @@ func (c *client) ListInstances(ctx context.Context, refresh bool) ([]models.Inst
 }
 
 func (c *client) GetInstance(ctx context.Context, name string) (*models.Instance, error) {
+	if err := validateInstanceName(name); err != nil {
+		return nil, err
+	}
+
 	var payload infoResponse
 	if err := c.runJSON(ctx, &payload, "info", name); err != nil {
 		if errorsIsNotFound(err) {
@@ -172,6 +176,12 @@ func (c *client) GetInstance(ctx context.Context, name string) (*models.Instance
 }
 
 func (c *client) LaunchInstance(ctx context.Context, opts models.LaunchOptions) error {
+	if opts.Name != "" {
+		if err := validateInstanceName(opts.Name); err != nil {
+			return err
+		}
+	}
+
 	for _, mount := range opts.Mounts {
 		if mount.ReadOnly {
 			return fmt.Errorf("read-only mounts are not supported by the Multipass CLI")
@@ -265,6 +275,10 @@ func (c *client) Exec(ctx context.Context, instance string, command []string) er
 }
 
 func (c *client) ExecCapture(ctx context.Context, instance string, command []string) ([]byte, error) {
+	if err := validateInstanceName(instance); err != nil {
+		return nil, err
+	}
+
 	if instance == "" {
 		return nil, fmt.Errorf("instance name is required for exec")
 	}
@@ -279,10 +293,18 @@ func (c *client) ExecCapture(ctx context.Context, instance string, command []str
 }
 
 func (c *client) StartInstance(ctx context.Context, name string) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	return c.runSimple(ctx, "start", name)
 }
 
 func (c *client) StopInstance(ctx context.Context, name string, force bool) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	args := []string{"stop"}
 	if force {
 		args = append(args, "--cancel")
@@ -295,14 +317,26 @@ func (c *client) StopInstance(ctx context.Context, name string, force bool) erro
 }
 
 func (c *client) SuspendInstance(ctx context.Context, name string) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	return c.runSimple(ctx, "suspend", name)
 }
 
 func (c *client) RestartInstance(ctx context.Context, name string) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	return c.runSimple(ctx, "restart", name)
 }
 
 func (c *client) DeleteInstance(ctx context.Context, name string, purge bool) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	args := []string{"delete"}
 	if purge {
 		args = append(args, "--purge")
@@ -316,10 +350,18 @@ func (c *client) DeleteInstance(ctx context.Context, name string, purge bool) er
 }
 
 func (c *client) RecoverInstance(ctx context.Context, name string) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	return c.runSimple(ctx, "recover", name)
 }
 
 func (c *client) SetPrimary(ctx context.Context, name string) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
 	if name == "" {
 		return fmt.Errorf("name is required to set primary")
 	}
@@ -451,6 +493,16 @@ func (c *client) ListSnapshots(ctx context.Context, instance string) ([]models.S
 }
 
 func (c *client) CreateSnapshot(ctx context.Context, instance, name, comment string) (string, error) {
+	if name != "" {
+		if err := validateInstanceName(name); err != nil {
+			return "", err
+		}
+	}
+
+	if err := validateInstanceName(instance); err != nil {
+		return "", err
+	}
+
 	if instance == "" {
 		return "", fmt.Errorf("instance name is required for snapshots")
 	}
@@ -488,6 +540,14 @@ func (c *client) CreateSnapshot(ctx context.Context, instance, name, comment str
 }
 
 func (c *client) DeleteSnapshot(ctx context.Context, instance, name string, purge bool) error {
+	if err := validateInstanceName(name); err != nil {
+		return err
+	}
+
+	if err := validateInstanceName(instance); err != nil {
+		return err
+	}
+
 	if instance == "" || name == "" {
 		return fmt.Errorf("instance and snapshot name are required")
 	}
@@ -504,6 +564,10 @@ func (c *client) DeleteSnapshot(ctx context.Context, instance, name string, purg
 }
 
 func (c *client) Mount(ctx context.Context, instance string, mount models.Mount) error {
+	if err := validateInstanceName(instance); err != nil {
+		return err
+	}
+
 	if mount.ReadOnly {
 		return fmt.Errorf("read-only mounts are not supported by the Multipass CLI")
 	}
@@ -528,6 +592,10 @@ func (c *client) Mount(ctx context.Context, instance string, mount models.Mount)
 }
 
 func (c *client) Unmount(ctx context.Context, instance string, mount models.Mount) error {
+	if err := validateInstanceName(instance); err != nil {
+		return err
+	}
+
 	if instance == "" {
 		return fmt.Errorf("instance name is required for umount")
 	}
@@ -765,4 +833,13 @@ func errorsIsNotFound(err error) bool {
 		return false
 	}
 	return errors.Is(err, ErrNotFound)
+}
+
+var instanceNamePattern = regexp.MustCompile(`^[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
+
+func validateInstanceName(name string) error {
+	if !instanceNamePattern.MatchString(name) {
+		return fmt.Errorf("invalid instance name: use letters, digits and internal hyphens, starting with a letter")
+	}
+	return nil
 }

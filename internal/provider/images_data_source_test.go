@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
 )
 
 func TestFilterImages(t *testing.T) {

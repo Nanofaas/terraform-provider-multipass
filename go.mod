@@ -1,4 +1,4 @@
-module github.com/todoroff/terraform-provider-multipass
+module github.com/Nanofaas/terraform-provider-multipass
 
 go 1.25.4
 

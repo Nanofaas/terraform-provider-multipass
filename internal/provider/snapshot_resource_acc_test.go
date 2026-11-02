@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 )
 
 func TestAccSnapshotResource_basic(t *testing.T) {

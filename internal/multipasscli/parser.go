@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
 )
 
 type versionResponse struct {

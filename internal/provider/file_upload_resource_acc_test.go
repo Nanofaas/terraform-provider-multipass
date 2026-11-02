@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
 )
 
 func TestAccFileUploadResource_content(t *testing.T) {
@@ -89,6 +90,9 @@ resource "multipass_file_upload" "test" {
 }
 
 func TestAccFileUploadResource_upgradeFromV210(t *testing.T) {
+	// Exercise the upstream schema migration under its original provider identity.
+	t.Setenv("TF_ACC_PROVIDER_NAMESPACE", "todoroff")
+	t.Setenv("TF_ACC_PROVIDER_HOST", "registry.terraform.io")
 	name := randomName()
 	source := filepath.Join(t.TempDir(), "bundle")
 	updatedSource := filepath.Join(t.TempDir(), "updated-bundle")
@@ -100,7 +104,7 @@ func TestAccFileUploadResource_upgradeFromV210(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	base := testProviderConfig + fmt.Sprintf(`
+	base := strings.ReplaceAll(testProviderConfig, "registry.opentofu.org/nanofaas/multipass", "registry.terraform.io/todoroff/multipass") + fmt.Sprintf(`
 resource "multipass_instance" "test" {
   name = %q
 }

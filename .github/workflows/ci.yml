@@ -5,12 +5,10 @@ on:
     branches: [ master ]
     paths-ignore:
       - 'docs/**'
-      - 'examples/**'
   pull_request:
     branches: [ master ]
     paths-ignore:
       - 'docs/**'
-      - 'examples/**'
 
 jobs:
   test:
@@ -44,3 +42,20 @@ jobs:
       - name: Go test
         run: go test ./...
 
+
+      - name: Static analysis
+        run: go vet ./...
+
+      - name: Race checks
+        if: runner.os == 'Linux'
+        run: go test -race ./internal/...
+
+      - uses: opentofu/setup-opentofu@v2
+        if: runner.os == 'Linux'
+        with:
+          tofu_version: '1.13.2'
+          tofu_wrapper: false
+
+      - name: Validate OpenTofu examples and schema
+        if: runner.os == 'Linux'
+        run: bash scripts/validate-opentofu.sh

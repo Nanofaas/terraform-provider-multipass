@@ -81,7 +81,7 @@ func TestPulumiCompatibility(t *testing.T) {
 				}
 				if name == "Pulumi.yaml" {
 					manifest := strings.ReplaceAll(string(data), "\r\n", "\n")
-					const published = "      - registry.terraform.io/todoroff/multipass\n      - 2.0.0"
+					const published = "      - registry.opentofu.org/nanofaas/multipass\n      - 2.0.0"
 					if !strings.Contains(manifest, published) {
 						t.Fatal("update the test's provider pin to match the example manifest")
 					}

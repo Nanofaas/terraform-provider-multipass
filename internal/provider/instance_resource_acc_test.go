@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
 )
 
 func TestAccInstanceResource_basic(t *testing.T) {

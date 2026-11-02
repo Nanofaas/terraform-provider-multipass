@@ -4,16 +4,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
-	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
 
 func testSSH(t *testing.T) *sshclient.Client {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX host fixture")
+	}
 	t.Helper()
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("POSIX shell required")

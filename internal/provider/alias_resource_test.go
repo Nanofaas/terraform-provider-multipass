@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
 	"testing"
 )
 

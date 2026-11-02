@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
 )
 
 // Reuse the test executable as a portable CLI subprocess. No real VMs are touched.

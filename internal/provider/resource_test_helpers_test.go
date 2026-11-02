@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
 )
 
 func resourceSchema(r resource.Resource) schema.Schema {

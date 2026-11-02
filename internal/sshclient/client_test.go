@@ -7,12 +7,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
 
 func fakeSSH(t *testing.T) *Client {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX host fixture")
+	}
 	t.Helper()
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("POSIX shell required")

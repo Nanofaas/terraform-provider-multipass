@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -19,7 +20,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
-	"github.com/todoroff/terraform-provider-multipass/internal/multipasscli"
 )
 
 func TestFileDownloadOwnsOnlyDownloadedFile(t *testing.T) {

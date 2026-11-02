@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
 )
 
 func TestAccDeleteInstancePreservesOtherDeletedInstances(t *testing.T) {

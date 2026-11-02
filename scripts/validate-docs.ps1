@@ -15,7 +15,7 @@ $files = & git -C $repoRoot ls-files --cached --others --exclude-standard -- '*.
 if ($LASTEXITCODE -ne 0) { throw 'Unable to list documentation files' }
 $brokenLinks = @()
 $linkCount = 0
-$repositoryURL = 'https://raw.githubusercontent.com/todoroff/terraform-provider-multipass/master/'
+$repositoryURL = 'https://raw.githubusercontent.com/Nanofaas/terraform-provider-multipass/master/'
 foreach ($file in ($files | Sort-Object -Unique)) {
     $fullPath = Join-Path $repoRoot $file
     # git ls-files also includes tracked files deleted by a pending rename.
@@ -81,7 +81,7 @@ try {
 terraform {
   required_providers {
     multipass = {
-      source = "registry.terraform.io/todoroff/multipass"
+      source = "registry.opentofu.org/nanofaas/multipass"
     }
   }
 }
@@ -91,7 +91,7 @@ terraform {
     $cliConfig = @"
 provider_installation {
   dev_overrides {
-    "registry.terraform.io/todoroff/multipass" = $hclBinDir
+    "registry.opentofu.org/nanofaas/multipass" = $hclBinDir
   }
 }
 "@
@@ -103,7 +103,7 @@ provider_installation {
     $schemaJSON = & $terraformCommand "-chdir=$workDir" providers schema -json
     if ($LASTEXITCODE -ne 0) { throw 'Provider schema export failed' }
     $schema = ($schemaJSON -join "`n") | ConvertFrom-Json
-    $providerSchema = $schema.provider_schemas.'registry.terraform.io/todoroff/multipass'
+    $providerSchema = $schema.provider_schemas.'registry.opentofu.org/nanofaas/multipass'
     if ($null -eq $providerSchema) { throw 'Local Multipass provider schema is missing' }
 
     # tfplugindocs 0.25.0 accepts the short name or a hashicorp/ address when

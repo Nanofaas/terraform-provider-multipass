@@ -1,7 +1,7 @@
 # Terraform Multipass Provider
 
-Provider source: `todoroff/multipass`
-Requires: Multipass CLI >= 1.13 installed on the Terraform host.
+Provider source: `registry.opentofu.org/nanofaas/multipass`
+Requires: Multipass CLI >= 1.13 locally, or on the Linux server in SSH mode (QEMU >= 1.15 for managed networks).
 This provider shells out to the `multipass` CLI — there is no REST API.
 
 ## Quick Start
@@ -10,7 +10,7 @@ This provider shells out to the `multipass` CLI — there is no REST API.
 terraform {
   required_providers {
     multipass = {
-      source = "todoroff/multipass"
+      source = "registry.opentofu.org/nanofaas/multipass"
     }
   }
 }
@@ -281,3 +281,15 @@ See [`examples/`](examples/) for complete working configurations:
 - `bridged-workstation/` — bridged networking, host mounts, primary instance
 - `cloud-init-lab/` — cloud-init from file and template
 - `file-provisioner/` — upload/download workflows with triggers
+
+## Nanofaas SSH and network additions
+
+`ssh_host` runs the remote Linux Multipass CLI over verified OpenSSH; optional
+settings are `ssh_user`, `ssh_port`, `ssh_identity_file`, `ssh_known_hosts_file`.
+The workstation does not need Multipass in this mode. `multipass_network`
+manages persistent NetworkManager private bridges; it requires Python 3,
+iproute2 and noninteractive sudo on the host. Keep physical interfaces and
+unowned resources unchanged. See the network resource documentation and the
+`examples/ssh-private-network` example. Static IPs use existing cloud-init;
+complete isolation, DHCP/DNS/NAT and recursive SSH transfers are out of scope.
+Nanofaas registry publication is pending; use the README local mirror setup.

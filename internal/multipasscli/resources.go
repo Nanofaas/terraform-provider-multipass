@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
 )
 
 type ResourceSetting string

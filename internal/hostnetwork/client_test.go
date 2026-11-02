@@ -1,7 +1,12 @@
 package hostnetwork
 
 import (
+	"context"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -21,6 +26,9 @@ func TestBridgeValidationAndConflicts(t *testing.T) {
 	}
 }
 func TestBridgeHostHelper(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX host fixture")
+	}
 	python, err := exec.LookPath("python3")
 	if err != nil {
 		t.Skip("Python 3 required for helper tests")
@@ -28,5 +36,34 @@ func TestBridgeHostHelper(t *testing.T) {
 	cmd := exec.Command(python, "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py", "-v")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestInvalidHelperResponse(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX SSH fixture")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "ssh"), []byte("#!/bin/sh\nprintf '%s' \"$HELPER_RESPONSE\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	ssh, err := sshclient.New(sshclient.Config{Host: "test-host"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := New(ssh)
+	for _, output := range []string{`{}`, `null`, `{"bridge":{"id":"wrong","name":"nf-test","address":"10.60.0.1/24"}}`} {
+		t.Setenv("HELPER_RESPONSE", output)
+		for _, action := range []string{"read", "create"} {
+			requested := &Bridge{ID: "expected", Name: "nf-test", Address: "10.60.0.1/24"}
+			got, err := c.call(context.Background(), action, requested)
+			if err == nil {
+				t.Errorf("%s %s accepted invalid response", action, output)
+			}
+			if action == "create" && (got == nil || got.ID != requested.ID) {
+				t.Errorf("lost creation recovery UUID: %+v", got)
+			}
+		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -29,6 +30,9 @@ func TestProviderSSHConfiguration(t *testing.T) {
 }
 
 func TestProviderSSHAliases(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX host fixture")
+	}
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("POSIX shell required")
 	}

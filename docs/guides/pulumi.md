@@ -5,7 +5,7 @@ description: "Use the Multipass provider through Pulumi's Terraform bridge."
 
 # Using Multipass with Pulumi
 
-Use this provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. It wraps the published `todoroff/multipass` binary and generates a local SDK for your language. The same Multipass CLI implementation serves Terraform, OpenTofu, and Pulumi.
+Use this provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. It wraps the published `registry.opentofu.org/nanofaas/multipass` binary and generates a local SDK for your language. The same Multipass CLI implementation serves Terraform, OpenTofu, and Pulumi.
 
 ## Prerequisites
 
@@ -39,7 +39,7 @@ packages:
     source: terraform-provider
     version: 1.4.0
     parameters:
-      - registry.terraform.io/todoroff/multipass
+      - registry.opentofu.org/nanofaas/multipass
       - 2.0.0
 ```
 
@@ -48,7 +48,7 @@ packages:
 For an existing Pulumi project, add the same package with:
 
 ```sh
-pulumi package add terraform-provider@1.4.0 registry.terraform.io/todoroff/multipass 2.0.0
+pulumi package add terraform-provider@1.4.0 registry.opentofu.org/nanofaas/multipass 2.0.0
 pulumi install
 ```
 

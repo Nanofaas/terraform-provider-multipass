@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
-	"github.com/todoroff/terraform-provider-multipass/internal/provider"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/provider"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 
 func main() {
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/todoroff/multipass",
+		Address: "registry.opentofu.org/nanofaas/multipass",
 	}
 
 	if err := providerserver.Serve(

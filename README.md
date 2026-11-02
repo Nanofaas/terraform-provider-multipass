@@ -1,4 +1,4 @@
-# Terraform Multipass Provider
+# Nanofaas OpenTofu Multipass Provider
 
 <p align="center">
   <img width="600"  alt="terraform-provider-multipass-heading-image" src="https://github.com/user-attachments/assets/61f462de-90b1-4352-80a7-ab6bb140e175" />
@@ -21,61 +21,50 @@
 
 ## Getting Started
 
-1. Install prerequisites:
-   - Terraform CLI 1.6 or newer.
-   - Go at the version required by `go.mod` (for local development).
-   - Multipass 1.13+ installed and accessible on your PATH (`multipass version --format json` should work).
+This is a fork of [todoroff/terraform-provider-multipass](https://github.com/todoroff/terraform-provider-multipass), preserving its MIT license and history. Nanofaas adds Linux SSH execution and persistent private bridge resources. The original local/daemon modes remain available.
 
-2. Initialize Terraform/OpenTofu in any configuration that declares `todoroff/multipass` as a required provider. The CLI will download it from the Terraform/Registry automatically. A trimmed version of `examples/basic/main.tf`:
+Run OpenTofu on your workstation; the provider runs Multipass **on the Linux server over SSH**. The workstation needs OpenTofu and OpenSSH. The server needs an authenticated Multipass CLI user. Managed networks additionally need NetworkManager, Python 3, iproute2 and noninteractive administrative privileges. Strict SSH host-key verification is always enabled.
+
+The Nanofaas address is `registry.opentofu.org/nanofaas/multipass`. **Registry registration is not yet complete:** build and install from this checkout using a local mirror:
+
+```sh
+provider_build="$(pwd)/build"
+provider_platform="$(go env GOOS)_$(go env GOARCH)"
+provider_dir="$provider_build/mirror/registry.opentofu.org/nanofaas/multipass/0.1.0/$provider_platform"
+mkdir -p "$provider_dir"
+go build -ldflags '-X main.version=0.1.0' -o "$provider_dir/terraform-provider-multipass_v0.1.0" ./cmd/terraform-provider-multipass
+cat > "$provider_build/local.tfrc" <<EOF
+provider_installation {
+  filesystem_mirror {
+    path = "$provider_build/mirror"
+    include = ["registry.opentofu.org/nanofaas/multipass"]
+  }
+}
+EOF
+export TF_CLI_CONFIG_FILE="$provider_build/local.tfrc"
+cd examples/ssh-private-network
+tofu init
+tofu plan -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
+```
+
+The [two-VM example](examples/ssh-private-network/) creates a private bridge and static guest addresses. Choose a non-overlapping subnet and verified host key before applying. These bridges are additional L2 segments: Multipass retains its default NIC, so they do not provide complete VM isolation.
 
 ```hcl
-terraform {
-  required_providers {
-    multipass = {
-      source = "todoroff/multipass"
-    }
-  }
-}
-
 provider "multipass" {
-  multipass_path  = "/usr/bin/multipass" # optional
-  command_timeout = 180                  # optional, seconds
-  default_image   = "lts"                # optional
-}
-
-resource "multipass_instance" "dev" {
-  name   = "dev-box"
-  image  = "lts"
-  cpus   = 2
-  memory = "4G"
-  disk   = "15G"
-
-  networks {
-    name = "en0"
-    mode = "manual"            #optional
-    mac  = "52:54:00:4b:ab:bd" #optional
-  }
-
-  mounts {
-    host_path     = "/home/shared"
-    instance_path = "/srv/hostshared"
-    read_only     = false             # optional
-  }
-}
-
-resource "multipass_alias" "shell" {
-  name     = "dev-shell"
-  instance = multipass_instance.dev.name
-  command  = "bash"
+  ssh_host = "192.0.2.10"
+  ssh_user = "ubuntu"
+  ssh_port = 22
 }
 ```
+
+Optional `ssh_identity_file` and `ssh_known_hosts_file` refer to files on the workstation; SSH agent and configuration are supported. In SSH mode, `multipass_path` is remote, cloud-init/upload files are local, and mount sources are server paths. Recursive SSH transfers are explicitly unsupported; single files are supported.
 
 ## Pulumi
 
 Use the provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. In an existing Pulumi project:
 
 ```sh
-pulumi package add terraform-provider@1.4.0 registry.terraform.io/todoroff/multipass 2.0.0
+pulumi package add terraform-provider@1.4.0 registry.opentofu.org/nanofaas/multipass 2.0.0
 pulumi install
 ```
 
@@ -111,6 +100,8 @@ The Multipass CLI still runs on the Terraform machine. Configure the remote daem
 
 ## Resources
 
+- `multipass_network`: persistent private Linux bridges over SSH ([reference](docs/resources/network.md)).
+
 - `multipass_instance`: manages VM lifecycle. Supports optional `networks` and `mounts` nested blocks, cloud-init file references, and auto-recovery semantics.
 - `multipass_alias`: creates host aliases executing commands inside instances.
 - `multipass_file_upload`: provision-style file or directory uploads backed by `multipass transfer`, an alternative to Terraform provisioners.
@@ -140,7 +131,7 @@ See `examples/README.md` for scenario overviews. Highlights:
 - `examples/bridged-workstation`: demonstrates bridged networking, host mounts, and working-directory aliases.
 - `examples/cloud-init-lab`: shows cloud-init provisioning with supporting YAML.
 
-Each Terraform directory is self-contained; run `terraform init` (or `tofu init`) inside the target folder and the published provider will be installed automatically. The [Pulumi examples](examples/pulumi/) use `pulumi install`.
+Each Terraform directory is self-contained. Configure the local mirror above before running `tofu init`; Nanofaas registry downloads are not yet available. The [Pulumi examples](examples/pulumi/) use `pulumi install`.
 
 ## Development
 
@@ -159,11 +150,12 @@ go test ./...
 go vet ./...
 ```
 
-Acceptance tests use real Multipass instances and remove their test resources afterward. They require a running Multipass daemon and Terraform or OpenTofu. Set the provider namespace because the test configurations use `todoroff/multipass` explicitly.
+Acceptance tests use real Multipass instances and remove their test resources afterward. They require a running Multipass daemon and Terraform or OpenTofu. Set the provider namespace because the test configurations use `registry.opentofu.org/nanofaas/multipass` explicitly.
 
 ```powershell
 $env:TF_ACC = "1"
-$env:TF_ACC_PROVIDER_NAMESPACE = "todoroff"
+$env:TF_ACC_PROVIDER_NAMESPACE = "nanofaas"
+$env:TF_ACC_PROVIDER_HOST = "registry.opentofu.org"
 $env:TF_ACC_TERRAFORM_PATH = (Get-Command tofu).Source # or terraform
 go test ./internal/multipasscli ./internal/provider -p 1 -run '^TestAcc' -count=1 -v -timeout 30m
 ```
@@ -196,3 +188,23 @@ Reference page paths now use names such as `docs/resources/instance.md` and `doc
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## Remote acceptance tests
+
+Only use a disposable, authorized Linux host. Verify its host key and authenticate
+its SSH user with Multipass first. No tests install packages or change access
+policies. Network tests require noninteractive sudo and an unused subnet.
+
+```sh
+export TF_ACC=1 TF_ACC_PROVIDER_NAMESPACE=nanofaas TF_ACC_PROVIDER_HOST=registry.opentofu.org
+export TF_ACC_TERRAFORM_PATH="$(command -v tofu)"
+export MULTIPASS_ACC_SSH_HOST=192.0.2.10 MULTIPASS_ACC_SSH_USER=ubuntu MULTIPASS_ACC_SSH_PORT=22
+export MULTIPASS_ACC_SUBNET=10.60.0.0/24
+go test ./internal/provider -run '^TestAccSSH' -count=1 -v -timeout 40m
+```
+
+Ordinary `go test ./...` does not create VMs. `bash scripts/validate-opentofu.sh`
+builds a temporary mirror and validates all examples/schema without connecting
+to a VM host. A GitHub repository is not a registry release: signed releases
+require the repository's `GPG_PRIVATE_KEY` and `PASSPHRASE` secrets and separate
+OpenTofu registry registration. No signing credentials are included in this fork.
