@@ -168,3 +168,26 @@ class BridgeTests(unittest.TestCase):
         self.host.run = asynchronous_removal
         self.assertNotIn('error', self.host.execute('delete', self.req))
         self.assertEqual(self.store.links, [])
+
+    def test_request_boundaries_before_commands(self):
+        for req in [dict(self.req, command='ignored'), dict(self.req, id=self.req['id'].replace('-', '')), dict(self.req, id=3)]:
+            result = self.host.execute('create', req)
+            self.assertIn('error', result)
+            self.assertEqual(self.store.commands, [])
+        self.assertEqual(self.host.execute('read', self.req).get('protocol_version'), 1)
+
+    def test_subprocess_environment_is_not_user_controlled(self):
+        import os, subprocess
+        with patch.dict(os.environ, {'PATH':'/tmp/untrusted', 'PYTHONPATH':'/tmp/untrusted'}):
+            with patch.object(bridge.subprocess, 'run', return_value=subprocess.CompletedProcess([],0,'ok','')) as run:
+                self.assertEqual(bridge.Host().run('nmcli','--version'), 'ok')
+                env=run.call_args.kwargs['env']
+                self.assertTrue('PYTHONPATH' not in env, 'untrusted Python environment inherited')
+                self.assertEqual(env['PATH'],'/usr/sbin:/usr/bin:/sbin:/bin')
+
+    def test_dispatch_rejects_oversized_input_and_extra_arguments(self):
+        import subprocess,sys
+        helper=Path(__file__).with_name('bridge.py')
+        for args,payload in [(['create'],' '*65537),(['create','unexpected'],'{}')]:
+            result=subprocess.run([sys.executable,'-I',str(helper),*args],input=payload,text=True,capture_output=True,check=True)
+            self.assertIn('error',json.loads(result.stdout))

@@ -21,11 +21,12 @@ resource "multipass_network" "lab" {
 ## Requirements
 
 The host needs NetworkManager running, Python 3, iproute2, and Multipass QEMU
-1.15 or newer for bridge discovery. The SSH user needs noninteractive sudo to
-execute the embedded network helper with Python 3. This is administrative
-access; grant it only to trusted infrastructure automation accounts. The helper
-runs per operation and does not install a daemon or write a separate script.
-No packages or authentication settings are installed/changed automatically.
+1.15 or newer for bridge discovery. An administrator must install the root-owned
+network helper and its restricted sudoers rules using the
+[host preparation guide](../guides/installation.md). The provider invokes only
+that fixed executable; arbitrary Python sudo is neither required nor used.
+Grant helper access only to trusted infrastructure operators. No packages,
+authentication settings or helper updates are installed automatically.
 
 Physical interfaces are not added to the bridge, and no default routes, DHCP,
 DNS, NAT or firewall rules are created. Overlapping host subnets and routes are

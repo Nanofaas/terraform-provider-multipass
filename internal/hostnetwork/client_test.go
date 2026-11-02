@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,12 @@ func TestBridgeHostHelper(t *testing.T) {
 	python, err := exec.LookPath("python3")
 	if err != nil {
 		t.Skip("Python 3 required for helper tests")
+	}
+	// Track Python inputs in the Go test result cache.
+	for _, name := range []string{"scripts/bridge.py", "scripts/test_bridge.py"} {
+		if _, err := os.ReadFile(name); err != nil {
+			t.Fatal(err)
+		}
 	}
 	cmd := exec.Command(python, "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py", "-v")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -65,5 +72,41 @@ func TestInvalidHelperResponse(t *testing.T) {
 				t.Errorf("lost creation recovery UUID: %+v", got)
 			}
 		}
+	}
+}
+
+func TestFixedInstalledHelperAndProtocol(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX SSH fixture")
+	}
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "args")
+	t.Setenv("HELPER_ARGS", capture)
+	if err := os.WriteFile(filepath.Join(dir, "ssh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$HELPER_ARGS\"\nprintf '%s' \"$HELPER_RESPONSE\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	ssh, err := sshclient.New(sshclient.Config{Host: "fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := New(ssh)
+	b := &Bridge{ID: "afc40530-1111-4111-8111-111111111111", Name: "nf-test", Address: "10.60.0.1/24"}
+	for _, action := range []string{"read", "create", "delete"} {
+		t.Setenv("HELPER_RESPONSE", `{"protocol_version":1,"bridge":{"id":"afc40530-1111-4111-8111-111111111111","name":"nf-test","address":"10.60.0.1/24"}}`)
+		if _, err := c.call(context.Background(), action, b); err != nil {
+			t.Fatal(err)
+		}
+		got, _ := os.ReadFile(capture)
+		if !strings.Contains(string(got), "'/usr/local/libexec/nanofaas-multipass-network' '"+action+"'") || strings.Contains(string(got), "'python3'") {
+			t.Fatalf("not using fixed helper: %.180s", got)
+		}
+		if strings.Contains(string(got), "'sudo'") != (action != "read") {
+			t.Fatal("incorrect privilege boundary")
+		}
+	}
+	t.Setenv("HELPER_RESPONSE", `{"protocol_version":2,"bridge":{"id":"afc40530-1111-4111-8111-111111111111","name":"nf-test","address":"10.60.0.1/24"}}`)
+	if _, err := c.Read(context.Background(), b.ID); err == nil {
+		t.Fatal("accepted incompatible helper")
 	}
 }

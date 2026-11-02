@@ -1,4 +1,5 @@
-"""Ephemeral host helper: no files/services installed; only owned NM bridges change."""
+#!/usr/bin/python3 -I
+"""Root-owned network helper; only validated, provider-owned NM bridges change."""
 import fcntl
 import ipaddress
 import json
@@ -30,7 +31,7 @@ def validate(name, address):
 class Host:
     def run(self, *args):
         result = subprocess.run(args, text=True, capture_output=True, timeout=60,
-                                env={**os.environ, "LC_ALL": "C", "LANG": "C"})
+                                env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C", "LANG": "C"})
         if result.returncode:
             raise RuntimeError(f"{args[0]} failed ({result.returncode}): {result.stderr.strip()}")
         return result.stdout.strip()
@@ -152,6 +153,26 @@ class Host:
                     raise
 
     def execute(self, action, req):
+        try:
+            if action not in ("create", "read", "delete", "check"):
+                raise ValueError("invalid bridge action")
+            if not isinstance(req, dict):
+                raise ValueError("request must be a JSON object")
+            if action == "check":
+                if req:
+                    raise ValueError("check accepts an empty object")
+                result = self.check()
+            else:
+                if set(req) - {"id", "name", "address", "active"}:
+                    raise ValueError("unexpected request fields")
+                if not isinstance(req.get("id"), str) or str(uuid.UUID(req["id"])) != req["id"]:
+                    raise ValueError("id must be a canonical UUID")
+                result = self._execute(action, req)
+        except Exception as err:
+            result = {"error": str(err)}
+        return dict(result, protocol_version=1)
+
+    def _execute(self, action, req):
         self.pending = None
         try:
             uuid.UUID(req["id"])
@@ -187,9 +208,21 @@ class Host:
             return {"error": str(err)}
 
 
-if __name__ == "__main__":
+def main():
     try:
-        result = Host().execute(sys.argv[1], json.load(sys.stdin))
+        if len(sys.argv) != 2:
+            raise ValueError("expected exactly one action: create, read, delete or check")
+        if sys.argv[1] == "--version":
+            result = {"protocol_version": 1}
+        else:
+            raw = sys.stdin.buffer.read(65537)
+            if len(raw) > 65536:
+                raise ValueError("request exceeds 64 KiB")
+            result = Host().execute(sys.argv[1], json.loads(raw))
     except Exception as error:
-        result = {"error": str(error)}
+        result = {"protocol_version": 1, "error": str(error)}
     print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()

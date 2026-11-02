@@ -23,7 +23,7 @@
 
 This is a fork of [todoroff/terraform-provider-multipass](https://github.com/todoroff/terraform-provider-multipass), preserving its MIT license and history. Nanofaas adds Linux SSH execution and persistent private bridge resources. The original local/daemon modes remain available.
 
-Run OpenTofu on your workstation; the provider runs Multipass **on the Linux server over SSH**. The workstation needs OpenTofu and OpenSSH. The server needs an authenticated Multipass CLI user. Managed networks additionally need NetworkManager, Python 3, iproute2 and noninteractive administrative privileges. Strict SSH host-key verification is always enabled.
+Run OpenTofu on your workstation; the provider runs Multipass **on the Linux server over SSH**. The workstation needs OpenTofu and OpenSSH. The server needs an authenticated Multipass CLI user. Managed networks additionally need NetworkManager, Python 3, iproute2 and the [root-owned network helper with restricted sudoers rules](docs/guides/installation.md). Strict SSH host-key verification is always enabled.
 
 The Nanofaas address is `registry.opentofu.org/nanofaas/multipass`. **Registry registration is not yet complete:** build and install from this checkout using a local mirror:
 

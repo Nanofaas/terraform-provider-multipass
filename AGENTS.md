@@ -288,7 +288,7 @@ See [`examples/`](examples/) for complete working configurations:
 settings are `ssh_user`, `ssh_port`, `ssh_identity_file`, `ssh_known_hosts_file`.
 The workstation does not need Multipass in this mode. `multipass_network`
 manages persistent NetworkManager private bridges; it requires Python 3,
-iproute2 and noninteractive sudo on the host. Keep physical interfaces and
+iproute2 and the installed root-owned network helper with exact create/delete/check sudoers rules. See docs/guides/installation.md. Never fall back to arbitrary Python sudo. Keep physical interfaces and
 unowned resources unchanged. See the network resource documentation and the
 `examples/ssh-private-network` example. Static IPs use existing cloud-init;
 complete isolation, DHCP/DNS/NAT and recursive SSH transfers are out of scope.

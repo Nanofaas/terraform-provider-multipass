@@ -6,7 +6,8 @@ Multipass runs on the server.
 
 The Linux server needs Multipass QEMU >= 1.15, NetworkManager, Python 3 and
 iproute2. The SSH account must be authenticated with Multipass and authorized
-for noninteractive administrative network operations. Enroll a verified SSH
+to run the installed root-owned network helper through restricted sudoers rules.
+Follow the [host preparation guide](../../docs/guides/installation.md). Enroll a verified SSH
 host key and configure key/agent authentication first.
 
 ```sh

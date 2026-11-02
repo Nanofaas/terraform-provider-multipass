@@ -3,7 +3,6 @@ package hostnetwork
 import (
 	"context"
 	"crypto/rand"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,8 +12,8 @@ import (
 	"github.com/Nanofaas/terraform-provider-multipass/internal/sshclient"
 )
 
-//go:embed scripts/bridge.py
-var helper string
+const HelperPath = "/usr/local/libexec/nanofaas-multipass-network"
+
 var ErrNotFound = errors.New("network not found")
 var bridgeName = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,14}$`)
 
@@ -80,7 +79,7 @@ func (c *Client) call(ctx context.Context, action string, b *Bridge) (*Bridge, e
 	if err != nil {
 		return nil, err
 	}
-	args := []string{"python3", "-c", helper, action}
+	args := []string{HelperPath, action}
 	if action != "read" {
 		args = append([]string{"sudo", "-n", "--"}, args...)
 	}
@@ -89,15 +88,19 @@ func (c *Client) call(ctx context.Context, action string, b *Bridge) (*Bridge, e
 		if action == "create" {
 			return b, fmt.Errorf("network creation outcome unknown; refresh this UUID before retrying: %w (%s)", err, stderr)
 		}
-		return nil, fmt.Errorf("host network command failed (requires Python 3, NetworkManager, iproute2 and noninteractive sudo for mutations): %w (%s)", err, stderr)
+		return nil, fmt.Errorf("host network command failed (install the root-owned network helper and its restricted sudoers rules; NetworkManager and iproute2 are required): %w (%s)", err, stderr)
 	}
 	var result struct {
-		Bridge  *Bridge `json:"bridge"`
-		Error   string  `json:"error"`
-		Missing bool    `json:"missing"`
+		ProtocolVersion int     `json:"protocol_version"`
+		Bridge          *Bridge `json:"bridge"`
+		Error           string  `json:"error"`
+		Missing         bool    `json:"missing"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
 		return b, fmt.Errorf("invalid network helper response: %w", err)
+	}
+	if result.ProtocolVersion != 1 {
+		return b, fmt.Errorf("incompatible network helper protocol %d; install the helper shipped with this provider (protocol 1)", result.ProtocolVersion)
 	}
 	if result.Bridge != nil && (result.Bridge.ID != b.ID || !bridgeName.MatchString(result.Bridge.Name)) {
 		return b, fmt.Errorf("invalid network helper response: bridge identity mismatch")
