@@ -70,7 +70,9 @@ multipass-doctor -host SERVER -user SSH_USER -port 22 -networks
 
 The first command checks SSH/Linux, supported Multipass version and daemon
 access. `-networks` adds QEMU, installed helper protocol/sudo access,
-NetworkManager, iproute2 and bridged IPv4 filtering. It makes no configuration
+NetworkManager, iproute2 and bridged IPv4 filtering. It also checks root ownership,
+non-writable helper directories, execution by the SSH user and NOPASSWD
+authorization for the exact create/delete commands using `sudo -ll`. It makes no configuration
 changes. FAIL returns exit status 1; WARN requires operator attention but does
 not mean the host is unusable. A firewall warning is not a connectivity test.
 Use `-identity-file`, `-known-hosts-file` and `-multipass-path` when needed;

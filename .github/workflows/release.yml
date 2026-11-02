@@ -51,6 +51,14 @@ jobs:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
       - name: Validate artifacts
         run: python3 scripts/verify-release.py dist --stage
+      - name: Verify signature and publish validated draft
+        if: ${{ !inputs.snapshot }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gpg --verify dist/*_SHA256SUMS.sig dist/*_SHA256SUMS
+          gh release edit "$RELEASE_TAG" --draft=false --latest
       - name: Preserve snapshot artifacts
         if: ${{ inputs.snapshot }}
         uses: actions/upload-artifact@v4

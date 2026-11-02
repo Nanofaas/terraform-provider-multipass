@@ -193,7 +193,7 @@ Reference page paths now use names such as `docs/resources/instance.md` and `doc
 - CI runs on GitHub Actions (`.github/workflows/ci.yml`) and executes `go test ./...` across a small matrix of Go versions and OSes.
 - Documentation validation runs in `.github/workflows/docs.yml` on Linux and Windows, including documentation-only changes.
 - Pulumi compatibility runs separately in `.github/workflows/pulumi.yml`: schema checks, SDK generation, TypeScript checking, and previews with a fake Multipass CLI on Linux and Windows. See [how to run it locally](docs/guides/pulumi.md#compatibility-checks).
-- Tagged releases (`X.Y.Z`) trigger GoReleaser (`.goreleaser.yml`) via `.github/workflows/release.yml`, which builds cross-platform artifacts suitable for attaching to GitHub Releases and publishing to the Terraform/OpenTofu registries.
+- Tagged releases (`vX.Y.Z`) trigger GoReleaser (`.goreleaser.yml`) via `.github/workflows/release.yml`. Archives and signatures are checked before the draft release is published.
 
 ## License
 

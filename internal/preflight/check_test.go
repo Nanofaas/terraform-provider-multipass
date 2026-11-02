@@ -21,6 +21,9 @@ case "$command" in
 *"'version'"*) printf '{"multipass":"1.17.0"}';;
 *"'list'"*) if [ "$CHECK_AUTH" = no ]; then echo 'not authenticated' >&2; exit 1; fi; printf '{"list":[]}';;
 *"'get' 'local.driver'"*) echo qemu;;
+*"'/usr/bin/python3'"*) printf '[{"uid":0,"mode":16877},{"uid":0,"mode":16877},{"uid":0,"mode":16877},{"uid":0,"mode":16877},{"uid":0,"mode":33261}]';;
+*"'--version'"*) printf '{"protocol_version":1}';;
+*"'-ll'"*) echo 'Options: !authenticate';;
 *"'check'"*) printf '%s' "$CHECK_HELPER";;
 *) echo "unexpected command" >&2;exit 9;;
 esac
