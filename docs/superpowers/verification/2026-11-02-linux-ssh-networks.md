@@ -29,10 +29,22 @@ backup of the prior trust bundle. No private keys or passphrases were exported.
 
 The managed-network acceptance test passed creation, deliberate deactivation,
 refresh/replacement, recovery and destruction. No server reboot was performed.
-The two-VM test created both Ubuntu 24.04 guests and completed cloud-init, but
-private-address ping was blocked by the host's bridged IPv4 forwarding policy.
-A scoped firewall exception requires separate approval; the provider deliberately
-does not manage host firewall policy. Test VMs and bridge interfaces were removed.
+The two-VM test initially exposed the host's restrictive bridged IPv4 forwarding
+policy. With explicit user approval, the test was repeated with one temporary
+IPv4 ACCEPT rule matching both ingress and egress on the exact owned test bridge.
+The rule was checked against the bridge's NetworkManager ownership marker before
+insertion and carried a unique acceptance-test comment.
+
+`TestAccSSHPrivateNetwork` then passed in 59.71 seconds: both Ubuntu 24.04 guests
+completed cloud-init, the first guest pinged the second guest's static private
+address, the next plan contained no changes, bridge import matched state, and
+resource destruction passed its checks. The temporary rule was removed in the
+test wrapper's cleanup. A separate server check confirmed no test VMs, bridge,
+NetworkManager profile or temporary rule remained; `FORWARD DROP` stayed intact.
+
+The production provider deliberately does not manage firewall policy. On hosts
+that filter bridged packets, administrators must allow traffic within the chosen
+bridge as described in the [network prerequisites](../../resources/network.md#host-firewall-prerequisites).
 
 ## Implementation decisions
 

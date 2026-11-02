@@ -14,8 +14,9 @@
 
 Implementation and public fork delivery are complete. See the
 [verification record](../verification/2026-11-02-linux-ssh-networks.md) for tests,
-live-host findings, implementation adjustments and the remaining firewall-dependent
-ping check. The checklist below records the original plan.
+live-host findings, implementation adjustments and the successful two-VM
+connectivity check with a scoped, temporary firewall allowance. The checklist
+below records the original plan.
 
 ## Global Constraints
 
