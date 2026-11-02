@@ -2,8 +2,13 @@ name: Release
 
 on:
   push:
-    tags:
-      - "*.*.*"
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: Build and validate artifacts without publishing or signing
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -11,35 +16,49 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
           cache: true
-
+      - name: Verify source and packaging
+        run: |
+          go test ./...
+          go vet ./...
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          if [ '${{ inputs.snapshot }}' != true ] && [ '${{ github.ref_type }}' != tag ]; then
+            echo 'Publishing requires a release tag.' >&2
+            exit 1
+          fi
       - name: Import GPG key
+        if: ${{ !inputs.snapshot }}
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+      - name: Build release
+        uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: '~> v2'
-          args: release --clean
+          version: v2.19.0
+          args: ${{ inputs.snapshot && 'release --snapshot --clean --skip=publish,sign' || 'release --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-
-
-
+      - name: Validate artifacts
+        run: python3 scripts/verify-release.py dist --stage
+      - name: Preserve snapshot artifacts
+        if: ${{ inputs.snapshot }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-snapshot
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*_manifest.json
+            dist/*_SHA256SUMS
+            dist/*.asc

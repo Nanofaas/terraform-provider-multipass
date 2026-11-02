@@ -75,3 +75,29 @@ changes. FAIL returns exit status 1; WARN requires operator attention but does
 not mean the host is unusable. A firewall warning is not a connectivity test.
 Use `-identity-file`, `-known-hosts-file` and `-multipass-path` when needed;
 otherwise OpenSSH configuration and the remote CLI PATH apply.
+
+## Release verification
+
+Download the platform ZIP, host-tools archive (when managing networks),
+`SHA256SUMS`, its `.sig` signature and the public signing key from the same
+[GitHub release](https://github.com/Nanofaas/terraform-provider-multipass/releases).
+The dedicated signing key fingerprint is:
+
+```text
+BC1D 2E34 BCE6 C306 73A5 CAA4 FE32 DA97 9EF3 7C37
+```
+
+Verify this fingerprint independently against `packaging/public-key.asc` in the
+repository. Import the public key, verify the checksum signature, and check the
+downloaded files before executing the installer or binaries:
+
+```sh
+gpg --import nanofaas-multipass-signing-key.asc
+gpg --verify terraform-provider-multipass_0.1.0_SHA256SUMS.sig terraform-provider-multipass_0.1.0_SHA256SUMS
+sha256sum --ignore-missing -c terraform-provider-multipass_0.1.0_SHA256SUMS
+```
+
+On macOS use `shasum -a 256 -c` with the checksum entries for the files you
+downloaded. A valid signature alone does not establish trust in an unknown key.
+Each platform ZIP includes the provider and `multipass-doctor`; the host-tools
+archive is platform-independent and runs only on supported Linux servers.

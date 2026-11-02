@@ -47,6 +47,10 @@ jobs:
       - name: Static analysis
         run: go vet ./...
 
+      - name: Verify release packaging
+        if: runner.os == 'Linux'
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
       - name: Race checks
         if: runner.os == 'Linux'
         run: go test -race ./internal/...
