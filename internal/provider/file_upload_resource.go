@@ -40,6 +40,7 @@ func NewFileUploadResource() resource.Resource {
 }
 
 type fileUploadResource struct {
+	sshMode        bool
 	client         multipasscli.Client
 	commandTimeout time.Duration
 }
@@ -161,6 +162,7 @@ func (r *fileUploadResource) Configure(_ context.Context, req resource.Configure
 
 	data := req.ProviderData.(providerData)
 	r.client = data.client
+	r.sshMode = data.ssh != nil
 	r.commandTimeout = data.commandTimeout
 }
 
@@ -172,6 +174,9 @@ func (r *fileUploadResource) ModifyPlan(ctx context.Context, req resource.Modify
 	var plan fileUploadResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if rejectSSHDirectory(r.sshMode, plan.Recursive, &resp.Diagnostics) {
 		return
 	}
 
@@ -217,6 +222,9 @@ func (r *fileUploadResource) Create(ctx context.Context, req resource.CreateRequ
 	var plan fileUploadResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if rejectSSHDirectory(r.sshMode, plan.Recursive, &resp.Diagnostics) {
 		return
 	}
 
@@ -291,6 +299,9 @@ func (r *fileUploadResource) Update(ctx context.Context, req resource.UpdateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if rejectSSHDirectory(r.sshMode, plan.Recursive, &resp.Diagnostics) {
+		return
+	}
 
 	updateTimeout, diags := plan.Timeouts.Update(ctx, r.commandTimeout)
 	resp.Diagnostics.Append(diags...)
@@ -324,6 +335,9 @@ func (r *fileUploadResource) Delete(ctx context.Context, req resource.DeleteRequ
 	var state fileUploadResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if rejectSSHDirectory(r.sshMode, state.Recursive, &resp.Diagnostics) {
 		return
 	}
 
@@ -501,6 +515,9 @@ func (r *fileUploadResource) resolveLegacyUpload(ctx context.Context, model *fil
 }
 
 func (r *fileUploadResource) transferUpload(ctx context.Context, model *fileUploadResourceModel) (diags diag.Diagnostics) {
+	if rejectSSHDirectory(r.sshMode, model.Recursive, &diags) {
+		return
+	}
 	src, content, d := r.prepareLocalSource(model)
 	diags.Append(d...)
 	if diags.HasError() {

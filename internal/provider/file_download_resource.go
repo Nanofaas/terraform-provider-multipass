@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	tfpath "github.com/hashicorp/terraform-plugin-framework/path"
 	"io"
 	"io/fs"
 	"os"
@@ -38,6 +39,7 @@ func NewFileDownloadResource() resource.Resource {
 }
 
 type fileDownloadResource struct {
+	sshMode        bool
 	client         multipasscli.Client
 	hostOS         string
 	commandTimeout time.Duration
@@ -153,6 +155,7 @@ func (r *fileDownloadResource) Configure(_ context.Context, req resource.Configu
 
 	data := req.ProviderData.(providerData)
 	r.client = data.client
+	r.sshMode = data.ssh != nil
 	r.hostOS = data.hostOS
 	r.commandTimeout = data.commandTimeout
 }
@@ -166,6 +169,9 @@ func (r *fileDownloadResource) Create(ctx context.Context, req resource.CreateRe
 	var plan fileDownloadResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if rejectSSHDirectory(r.sshMode, plan.Recursive, &resp.Diagnostics) {
 		return
 	}
 
@@ -237,6 +243,9 @@ func (r *fileDownloadResource) Update(ctx context.Context, req resource.UpdateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if rejectSSHDirectory(r.sshMode, plan.Recursive, &resp.Diagnostics) {
+		return
+	}
 
 	updateTimeout, diags := plan.Timeouts.Update(ctx, r.commandTimeout)
 	resp.Diagnostics.Append(diags...)
@@ -258,6 +267,9 @@ func (r *fileDownloadResource) Delete(ctx context.Context, req resource.DeleteRe
 	var state fileDownloadResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if rejectSSHDirectory(r.sshMode, state.Recursive, &resp.Diagnostics) {
 		return
 	}
 
@@ -308,6 +320,9 @@ func (r *fileDownloadResource) ImportState(ctx context.Context, req resource.Imp
 
 func (r *fileDownloadResource) downloadAndWrite(ctx context.Context, model *fileDownloadResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
+	if rejectSSHDirectory(r.sshMode, model.Recursive, &diags) {
+		return diags
+	}
 
 	if model.Destination.ValueString() == "" {
 		diags.AddError("Invalid destination", "Destination must be non-empty")
@@ -319,7 +334,7 @@ func (r *fileDownloadResource) downloadAndWrite(ctx context.Context, model *file
 		return diags
 	}
 
-	if r.hostOS == "windows" {
+	if r.sshMode || r.hostOS == "windows" {
 		return r.downloadWithTar(ctx, model, dest)
 	}
 	return r.downloadDirect(ctx, model, dest)
@@ -722,4 +737,13 @@ func copyFileContents(src, dest string) error {
 		return err
 	}
 	return out.Close()
+}
+
+func (r *fileDownloadResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+	var recursive types.Bool
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, tfpath.Root("recursive"), &recursive)...)
+	rejectSSHDirectory(r.sshMode, recursive, &resp.Diagnostics)
 }

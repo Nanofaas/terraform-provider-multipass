@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -180,6 +181,14 @@ func (c *client) LaunchInstance(ctx context.Context, opts models.LaunchOptions) 
 		return fmt.Errorf("only one of CloudInitInline or CloudInitFile may be set")
 	}
 
+	if c.ssh != nil && opts.CloudInitFile != "" {
+		content, err := os.ReadFile(opts.CloudInitFile)
+		if err != nil {
+			return fmt.Errorf("read local cloud-init: %w", err)
+		}
+		// Keep the file marker to select stdin even when its content is empty.
+		opts.CloudInitInline = string(content)
+	}
 	args := []string{"launch"}
 	if opts.Name != "" {
 		args = append(args, "--name", opts.Name)
@@ -201,7 +210,7 @@ func (c *client) LaunchInstance(ctx context.Context, opts models.LaunchOptions) 
 	// cannot read. File-based cloud-init is passed through as a path; the
 	// user is responsible for placing it somewhere multipass can see.
 	var stdin []byte
-	if opts.CloudInitInline != "" {
+	if opts.CloudInitInline != "" || (c.ssh != nil && opts.CloudInitFile != "") {
 		args = append(args, "--cloud-init", "-")
 		stdin = []byte(opts.CloudInitInline)
 	} else if opts.CloudInitFile != "" {
@@ -542,6 +551,31 @@ func (c *client) Unmount(ctx context.Context, instance string, mount models.Moun
 }
 
 func (c *client) Transfer(ctx context.Context, opts TransferOptions) error {
+	if c.ssh != nil {
+		if opts.Recursive {
+			return fmt.Errorf("recursive SSH transfers are not supported")
+		}
+		if opts.Stdin == nil {
+			if len(opts.Sources) != 1 || strings.Contains(opts.Sources[0], ":") {
+				return fmt.Errorf("SSH uploads require one local file; use capture for downloads")
+			}
+			info, err := os.Stat(opts.Sources[0])
+			if err != nil {
+				return err
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("SSH upload source must be a regular file")
+			}
+			opts.Stdin, err = os.ReadFile(opts.Sources[0])
+			if err != nil {
+				return err
+			}
+			if opts.Stdin == nil {
+				opts.Stdin = []byte{}
+			}
+		}
+	}
+
 	if opts.Stdin == nil && len(opts.Sources) == 0 {
 		return fmt.Errorf("at least one source is required for transfer")
 	}

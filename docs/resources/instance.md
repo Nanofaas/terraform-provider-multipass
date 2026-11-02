@@ -147,3 +147,10 @@ Existing instances can be imported by name:
 ```bash
 terraform import multipass_instance.dev dev-box
 ```
+
+### SSH path semantics
+
+In SSH mode, `cloud_init_file` is read on the OpenTofu workstation and its
+contents are piped to the remote CLI. Mount source paths refer to the Linux
+Multipass host, not the workstation. Inline cloud-init can be stored in state;
+protect state and avoid embedding credentials unnecessarily.

@@ -79,3 +79,9 @@ Existing configurations and state continue to work without re-import or changing
 Older recursive uploads did not record whether `destination` was an existing parent or the newly created payload root. Refresh preserves these resources and warns that ownership is unknown. Destroy removes their Terraform record and retains the remote files with a warning; it never guesses which directory is safe to delete.
 
 The next successful update follows the previous Multipass transfer behavior and records its exact output path. In particular, an existing directory destination receives a child named after the local source directory. If the first upload originally created the destination itself, an update can therefore create a nested directory, just as with the previous provider. Earlier files outside the newly recorded path are retained. Subsequent updates use the recorded path, and destroy removes only that path. Review the plan and inspect retained files before cleaning them up manually.
+
+### SSH mode
+
+Single local files and inline content are streamed over SSH to the host CLI.
+Recursive uploads are not supported in SSH mode and fail before mutation.
+Local-mode recursive uploads retain their existing behavior.

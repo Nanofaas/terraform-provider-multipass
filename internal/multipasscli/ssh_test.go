@@ -1,8 +1,10 @@
 package multipasscli
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"github.com/todoroff/terraform-provider-multipass/internal/models"
 	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
 	"os"
 	"os/exec"
@@ -67,5 +69,85 @@ esac
 	// Remote paths must not be searched on the workstation.
 	if _, err := NewClient(context.Background(), Config{BinaryPath: "remote-only-multipass", SSH: ssh}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSSHCloudInitFile(t *testing.T) {
+	ssh := testSSH(t)
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "stdin")
+	t.Setenv("SSH_CLOUD_CAPTURE", capture)
+	script := filepath.Join(dir, "multipass")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ncase \"$*\" in *'--cloud-init -'*) cat > \"$SSH_CLOUD_CAPTURE\";; *) exit 7;; esac\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cli, err := NewClient(context.Background(), Config{SSH: ssh, BinaryPath: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "cloud ' config")
+	input := []byte("#cloud-config\npackages: [curl]\n")
+	if err := os.WriteFile(file, input, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := cli.LaunchInstance(context.Background(), models.LaunchOptions{Name: "test", CloudInitFile: file}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(capture)
+	if err != nil || !bytes.Equal(got, input) {
+		t.Fatalf("content=%q err=%v", got, err)
+	}
+	os.Remove(capture)
+	if err := cli.LaunchInstance(context.Background(), models.LaunchOptions{Name: "test", CloudInitFile: file + "missing"}); err == nil {
+		t.Fatal("accepted missing file")
+	}
+	if _, err := os.Stat(capture); !os.IsNotExist(err) {
+		t.Fatal("remote command ran for missing input")
+	}
+}
+func TestSSHFileRoundTrip(t *testing.T) {
+	ssh := testSSH(t)
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "remote-bytes")
+	t.Setenv("SSH_FILE_CAPTURE", capture)
+	script := filepath.Join(dir, "multipass")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\n[ \"$1\" = transfer ] || exit 8\nif [ \"$2\" = - ]; then cat > \"$SSH_FILE_CAPTURE\"; else cat \"$SSH_FILE_CAPTURE\"; fi\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cli, err := NewClient(context.Background(), Config{SSH: ssh, BinaryPath: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, input := range [][]byte{{}, {0, 255, 10, 13, 42}} {
+		file := filepath.Join(dir, "local ' file")
+		os.WriteFile(file, input, 0600)
+		if err := cli.Transfer(context.Background(), TransferOptions{Sources: []string{file}, Destination: "vm:/file"}); err != nil {
+			t.Fatal(err)
+		}
+		got, err := cli.TransferCapture(context.Background(), TransferOptions{Sources: []string{"vm:/file"}, Destination: "-"})
+		if err != nil || !bytes.Equal(input, got) {
+			t.Fatalf("round trip=%v err=%v", got, err)
+		}
+	}
+}
+
+func TestSSHMountUsesHostPath(t *testing.T) {
+	ssh := testSSH(t)
+	dir := t.TempDir()
+	capture := filepath.Join(dir, "mount-args")
+	t.Setenv("SSH_MOUNT_CAPTURE", capture)
+	script := filepath.Join(dir, "multipass")
+	os.WriteFile(script, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$SSH_MOUNT_CAPTURE\"\n"), 0700)
+	cli, err := NewClient(context.Background(), Config{SSH: ssh, BinaryPath: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := "/remote/only ' $(exit 8)"
+	if err := cli.Mount(context.Background(), "vm", models.Mount{HostPath: source, InstancePath: "/mnt/data"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(capture)
+	if err != nil || string(got) != "mount\n"+source+"\nvm:/mnt/data\n" {
+		t.Fatalf("args=%q err=%v", got, err)
 	}
 }

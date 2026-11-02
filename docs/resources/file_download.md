@@ -62,3 +62,9 @@ On Linux/macOS, downloads stage under the Terraform user's home directory so the
 Directory downloads are fully staged and validated before replacing the destination. The previous directory is moved aside until installation succeeds; failed installation attempts restore it, and any failed restoration reports the retained backup path.
 
 On POSIX hosts, new directory roots use `0755` subject to the host umask. Overwrites preserve the existing root's permission mode. Staging remains private until its contents are validated and ready for installation.
+
+### SSH mode
+
+Single files are captured from the remote CLI and written on the OpenTofu
+workstation with the same overwrite and ownership checks. Recursive downloads
+are not supported in SSH mode and fail before mutation.

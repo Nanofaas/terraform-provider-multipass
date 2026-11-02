@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"io"
 	"os"
 	"path/filepath"
@@ -100,4 +102,12 @@ func walkDirectory(root, current string, h io.Writer, legacy bool) error {
 func hashBytes(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+func rejectSSHDirectory(ssh bool, recursive types.Bool, diags *diag.Diagnostics) bool {
+	if ssh && recursive.ValueBool() {
+		diags.AddError("Recursive SSH transfer unsupported", "The SSH transport supports individual files. Use single-file resources; recursive transfers remain available in local mode.")
+		return true
+	}
+	return false
 }
