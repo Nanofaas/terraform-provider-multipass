@@ -31,3 +31,6 @@ examples/pulumi/**/Pulumi.*.yaml
 
 # Logs
 *.log
+
+.worktrees/
+.superpowers/
