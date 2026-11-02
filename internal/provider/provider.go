@@ -205,6 +205,7 @@ func (p *MultipassProvider) Configure(ctx context.Context, req provider.Configur
 func (p *MultipassProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewInstanceResource,
+		NewNetworkResource,
 		NewAliasResource,
 		NewSnapshotResource,
 		NewFileUploadResource,
