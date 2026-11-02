@@ -61,10 +61,11 @@ Optional `ssh_identity_file` and `ssh_known_hosts_file` refer to files on the wo
 
 ## Pulumi
 
-Use the provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. In an existing Pulumi project:
+Use the provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. Build the local provider before running the examples; Nanofaas registry installation is pending:
 
 ```sh
-pulumi package add terraform-provider@1.4.0 registry.opentofu.org/nanofaas/multipass 2.0.0
+go build -o build/terraform-provider-multipass ./cmd/terraform-provider-multipass
+cd examples/pulumi/typescript # or examples/pulumi/python
 pulumi install
 ```
 

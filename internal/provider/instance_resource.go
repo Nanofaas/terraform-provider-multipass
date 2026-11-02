@@ -311,41 +311,46 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 	createCtx, createCancel := context.WithTimeout(ctx, createTimeout)
 	defer createCancel()
 
+	var launchUncertain error
 	if err := r.client.LaunchInstance(createCtx, opts); err != nil {
-		if !errors.Is(err, multipasscli.ErrTimeout) {
-			resp.Diagnostics.AddError("Failed to launch instance", err.Error())
-			return
-		}
+		if errors.Is(err, multipasscli.ErrLaunchUncertain) {
+			launchUncertain = err
+		} else {
+			if !errors.Is(err, multipasscli.ErrTimeout) {
+				resp.Diagnostics.AddError("Failed to launch instance", err.Error())
+				return
+			}
 
-		// Launch timed out. The Multipass daemon may still be creating the
-		// instance in the background. Poll to see if it becomes available.
-		tflog.Warn(ctx, "Launch command timed out, checking if instance was created by daemon", map[string]any{
-			"name": opts.Name,
-		})
+			// Launch timed out. The Multipass daemon may still be creating the
+			// instance in the background. Poll to see if it becomes available.
+			tflog.Warn(ctx, "Launch command timed out, checking if instance was created by daemon", map[string]any{
+				"name": opts.Name,
+			})
 
-		recoveryTimeout := 5 * time.Minute
-		recoveryCtx, recoveryCancel := context.WithTimeout(ctx, recoveryTimeout)
-		defer recoveryCancel()
-		if recoverErr := r.waitForInstanceAfterTimeout(recoveryCtx, opts.Name, recoveryTimeout); recoverErr != nil {
-			resp.Diagnostics.AddError(
-				"Launch timed out and instance not found",
-				fmt.Sprintf(
-					"The launch command timed out and the instance %q could not be found after waiting an additional %s. "+
-						"Consider increasing the provider command_timeout or check 'multipass list' to see if the instance is still being created. "+
-						"Original error: %s",
-					opts.Name, recoveryTimeout, err.Error(),
-				),
+			recoveryTimeout := 5 * time.Minute
+			recoveryCtx, recoveryCancel := context.WithTimeout(ctx, recoveryTimeout)
+			defer recoveryCancel()
+			if recoverErr := r.waitForInstanceAfterTimeout(recoveryCtx, opts.Name, recoveryTimeout); recoverErr != nil {
+				resp.Diagnostics.AddError(
+					"Launch timed out and instance not found",
+					fmt.Sprintf(
+						"The launch command timed out and the instance %q could not be found after waiting an additional %s. "+
+							"Consider increasing the provider command_timeout or check 'multipass list' to see if the instance is still being created. "+
+							"Original error: %s",
+						opts.Name, recoveryTimeout, err.Error(),
+					),
+				)
+				return
+			}
+
+			resp.Diagnostics.AddWarning(
+				"Launch timed out but instance was created",
+				fmt.Sprintf("The launch command timed out, but instance %q was successfully created by the Multipass daemon.", opts.Name),
 			)
-			return
 		}
-
-		resp.Diagnostics.AddWarning(
-			"Launch timed out but instance was created",
-			fmt.Sprintf("The launch command timed out, but instance %q was successfully created by the Multipass daemon.", opts.Name),
-		)
 	}
 
-	// Launch succeeded: persist the VM even if allocation readback or cloud-init
+	// Launch succeeded or its outcome is uncertain: persist the VM even if allocation readback or cloud-init
 	// subsequently fails. Resolve computed launch defaults and initialize remote
 	// metadata so a failed refresh cannot leave unknown values in saved state.
 	plan.ID = types.StringValue(opts.Name)
@@ -359,8 +364,13 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 	plan.LastUpdated = types.StringNull()
 	plan.IPv4 = types.ListNull(types.StringType)
 	defer func() {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+		// Saving recovery identity must survive cancellation of the SSH request.
+		resp.Diagnostics.Append(resp.State.Set(context.WithoutCancel(ctx), &plan)...)
 	}()
+	if launchUncertain != nil {
+		resp.Diagnostics.AddError("Remote launch outcome unknown", fmt.Sprintf("Instance %q may have been created. Its name is retained in state for refresh and cleanup after SSH is restored. Verify the remote instance before retrying. Original error: %s", opts.Name, launchUncertain))
+		return
+	}
 
 	if plan.WaitForCloudInit.ValueBool() {
 		tflog.Info(ctx, "Waiting for cloud-init to finish", map[string]any{"name": opts.Name})

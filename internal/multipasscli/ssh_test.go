@@ -82,7 +82,7 @@ func TestSSHCloudInitFile(t *testing.T) {
 	capture := filepath.Join(dir, "stdin")
 	t.Setenv("SSH_CLOUD_CAPTURE", capture)
 	script := filepath.Join(dir, "multipass")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\ncase \"$*\" in *'--cloud-init -'*) cat > \"$SSH_CLOUD_CAPTURE\";; *) exit 7;; esac\n"), 0700); err != nil {
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nif [ \"$1\" = info ]; then echo 'instance test does not exist' >&2; exit 1; fi\ncase \"$*\" in *'--cloud-init -'*) cat > \"$SSH_CLOUD_CAPTURE\";; *) exit 7;; esac\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	cli, err := NewClient(context.Background(), Config{SSH: ssh, BinaryPath: script})
@@ -153,5 +153,85 @@ func TestSSHMountUsesHostPath(t *testing.T) {
 	got, err := os.ReadFile(capture)
 	if err != nil || string(got) != "mount\n"+source+"\nvm:/mnt/data\n" {
 		t.Fatalf("args=%q err=%v", got, err)
+	}
+}
+
+// Stop at execution: a canceled context lets this test cover real workstation
+// paths on Windows without needing a POSIX SSH fixture or a remote server.
+func TestSSHUploadLocalPath(t *testing.T) {
+	name := "file:with-colon"
+	if runtime.GOOS == "windows" {
+		name = "file.txt"
+	}
+	source := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(source, []byte{0, 255}, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cli := &client{ssh: &sshclient.Client{}, timeout: time.Second}
+	err := cli.Transfer(ctx, TransferOptions{Sources: []string{source}, Destination: "vm:/file"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("local path rejected before execution: %v", err)
+	}
+}
+
+func TestSSHLaunchUncertainAndPreexisting(t *testing.T) {
+	ssh := testSSH(t)
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "launched")
+	t.Setenv("SSH_LAUNCH_MARKER", marker)
+	script := filepath.Join(dir, "multipass")
+	body := `#!/bin/sh
+case "$1" in
+info)
+ if [ "$SSH_LAUNCH_MODE" = exists ]; then printf '{"info":{"test":{"state":"Running"}}}'; exit 0; fi
+ echo 'info failed: instance "test" does not exist' >&2; exit 1;;
+launch)
+ touch "$SSH_LAUNCH_MARKER"
+ if [ "$SSH_LAUNCH_MODE" = cancel ]; then exec sleep 10; fi
+ echo 'Connection reset by peer' >&2; exit 255;;
+esac
+`
+	if err := os.WriteFile(script, []byte(body), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cli, err := NewClient(context.Background(), Config{SSH: ssh, BinaryPath: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"disconnect", "cancel", "exists"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Setenv("SSH_LAUNCH_MODE", mode)
+			os.Remove(marker)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan struct{})
+			if mode == "cancel" {
+				go func() {
+					defer close(done)
+					deadline := time.Now().Add(3 * time.Second)
+					for time.Now().Before(deadline) {
+						if _, err := os.Stat(marker); err == nil {
+							break
+						}
+						time.Sleep(5 * time.Millisecond)
+					}
+					cancel()
+				}()
+			} else {
+				close(done)
+			}
+			err := cli.LaunchInstance(ctx, models.LaunchOptions{Name: "test"})
+			<-done
+			if errors.Is(err, ErrLaunchUncertain) != (mode != "exists") {
+				t.Fatalf("unexpected launch result: %v", err)
+			}
+			if mode == "exists" {
+				if _, err := os.Stat(marker); !os.IsNotExist(err) {
+					t.Fatal("existing VM was launched")
+				}
+			}
+		})
 	}
 }

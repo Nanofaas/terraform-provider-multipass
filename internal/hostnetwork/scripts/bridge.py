@@ -109,6 +109,8 @@ class Host:
         if req["id"] in self.profiles():
             raise RuntimeError("connection UUID already exists")
         self.check_conflicts(req["name"], ip.network)
+        # The add can succeed even if its response or later queries are lost.
+        self.pending = dict(req, active=False)
         self.run("nmcli", "connection", "add", "type", "bridge", "ifname", req["name"],
                  "con-name", "nanofaas-multipass-" + req["name"], "connection.uuid", req["id"],
                  "connection.autoconnect", "yes", "bridge.stp", "no", "ipv4.method", "manual",
@@ -139,6 +141,7 @@ class Host:
             self.run("ip", "link", "delete", "dev", found["name"])
 
     def execute(self, action, req):
+        self.pending = None
         try:
             uuid.UUID(req["id"])
             if action == "read":
@@ -160,9 +163,9 @@ class Host:
                     self.delete(req["id"])
                     return {}
                 except Exception as err:
-                    # Preserve only an identity whose ownership was actually confirmed.
-                    partial = None
-                    if action == "create":
+                    # Preserve the attempted UUID; Read/Delete still verify ownership.
+                    partial = self.pending
+                    if action == "create" and partial is not None:
                         try:
                             if req["id"] in self.profiles():
                                 partial = self.profile(req["id"])

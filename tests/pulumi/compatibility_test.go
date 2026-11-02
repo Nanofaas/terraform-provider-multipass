@@ -81,11 +81,11 @@ func TestPulumiCompatibility(t *testing.T) {
 				}
 				if name == "Pulumi.yaml" {
 					manifest := strings.ReplaceAll(string(data), "\r\n", "\n")
-					const published = "      - registry.opentofu.org/nanofaas/multipass\n      - 2.0.0"
-					if !strings.Contains(manifest, published) {
-						t.Fatal("update the test's provider pin to match the example manifest")
+					const localExample = "      - ../../../build/terraform-provider-multipass"
+					if !strings.Contains(manifest, localExample) {
+						t.Fatal("update the test's local binary path to match the example manifest")
 					}
-					data = []byte(strings.Replace(manifest, published, "      - ./../bin/terraform-provider-multipass", 1))
+					data = []byte(strings.Replace(manifest, localExample, "      - ./../bin/terraform-provider-multipass", 1))
 				}
 				if err := os.WriteFile(filepath.Join(project, name), data, 0600); err != nil {
 					t.Fatal(err)

@@ -10,6 +10,9 @@ var (
 	// ErrNotFound indicates the requested entity does not exist.
 	ErrNotFound = errors.New("not found")
 
+	// ErrLaunchUncertain means a named SSH launch may have reached the daemon.
+	ErrLaunchUncertain = errors.New("remote launch outcome unknown")
+
 	// ErrTimeout indicates the command timed out.
 	ErrTimeout = errors.New("command timed out")
 )

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Nanofaas/terraform-provider-multipass/internal/models"
+	"github.com/Nanofaas/terraform-provider-multipass/internal/multipasscli"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -161,6 +162,33 @@ func TestEmptyInstanceNameRejectedBeforeLaunch(t *testing.T) {
 		r.Create(ctx, resource.CreateRequest{Plan: tfsdk.Plan{Schema: s, Raw: resourceValue(s, values)}}, &resp)
 		if !resp.Diagnostics.HasError() {
 			t.Fatal("invalid name reached launch")
+		}
+	}
+}
+
+func TestUncertainLaunchRetainsIdentity(t *testing.T) {
+	for _, canceled := range []bool{false, true} {
+		ctx, cancel := context.WithCancel(context.Background())
+		r := &instanceResource{commandTimeout: time.Second, client: &testClient{launchInstance: func(context.Context, models.LaunchOptions) error {
+			if canceled {
+				cancel()
+			}
+			return multipasscli.ErrLaunchUncertain
+		}}}
+		s := resourceSchema(r)
+		plan := tfsdk.Plan{Schema: s, Raw: resourceValue(s, map[string]any{"name": "vm", "networks": []tftypes.Value{}, "mounts": []tftypes.Value{}})}
+		resp := resource.CreateResponse{State: tfsdk.State{Schema: s}}
+		r.Create(ctx, resource.CreateRequest{Plan: plan}, &resp)
+		cancel()
+		if !resp.Diagnostics.HasError() {
+			t.Fatal("uncertain launch must report failure")
+		}
+		var state instanceResourceModel
+		if d := resp.State.Get(context.Background(), &state); d.HasError() {
+			t.Fatal(d)
+		}
+		if state.ID.ValueString() != "vm" {
+			t.Fatal("lost possibly created VM identity")
 		}
 	}
 }

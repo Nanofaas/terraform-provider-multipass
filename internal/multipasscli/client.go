@@ -261,7 +261,18 @@ func (c *client) LaunchInstance(ctx context.Context, opts models.LaunchOptions) 
 	}
 	args = append(args, "--timeout", fmt.Sprintf("%d", int(cliTimeout.Seconds())))
 
+	if c.ssh != nil && opts.Name != "" {
+		if _, err := c.GetInstance(ctx, opts.Name); err == nil {
+			return fmt.Errorf("instance %q already exists; refusing to adopt it", opts.Name)
+		} else if !errors.Is(err, ErrNotFound) {
+			return fmt.Errorf("check instance before SSH launch: %w", err)
+		}
+	}
 	if _, err := c.runWithStdin(ctx, stdin, args...); err != nil {
+		var exitErr *exec.ExitError
+		if c.ssh != nil && opts.Name != "" && (errors.Is(err, ErrTimeout) || errors.Is(err, context.Canceled) || (errors.As(err, &exitErr) && exitErr.ExitCode() == 255)) {
+			return fmt.Errorf("%w: %w", ErrLaunchUncertain, err)
+		}
 		return err
 	}
 
@@ -624,7 +635,7 @@ func (c *client) Transfer(ctx context.Context, opts TransferOptions) error {
 			return fmt.Errorf("recursive SSH transfers are not supported")
 		}
 		if opts.Stdin == nil {
-			if len(opts.Sources) != 1 || strings.Contains(opts.Sources[0], ":") {
+			if len(opts.Sources) != 1 {
 				return fmt.Errorf("SSH uploads require one local file; use capture for downloads")
 			}
 			info, err := os.Stat(opts.Sources[0])

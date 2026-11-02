@@ -5,21 +5,23 @@ description: "Use the Multipass provider through Pulumi's Terraform bridge."
 
 # Using Multipass with Pulumi
 
-Use this provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. It wraps the published `registry.opentofu.org/nanofaas/multipass` binary and generates a local SDK for your language. The same Multipass CLI implementation serves Terraform, OpenTofu, and Pulumi.
+Use this provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. It wraps a local provider binary and generates a local SDK for your language. Nanofaas registry publication is pending. The same Multipass CLI implementation serves Terraform, OpenTofu, and Pulumi.
 
 ## Prerequisites
 
 - Multipass 1.13+ and access to its daemon on the machine running Pulumi.
-- Pulumi CLI. The examples and compatibility workflow use **3.266.0**, with the **1.4.0** Terraform bridge and **2.0.0** Multipass provider.
+- Pulumi CLI. The examples and compatibility workflow use **3.266.0**, with the **1.4.0** Terraform bridge and the provider built from this checkout.
 - Node.js 22+ for TypeScript, or Python 3.10+ with pip and venv for Python.
 
-Terraform/OpenTofu and Go are not needed to use the published provider. Go at the version required by `go.mod` is needed to build local changes.
+Terraform/OpenTofu is not needed by the bridge. Go at the version required by `go.mod` is needed to build the provider.
 
 ## Quick start
 
 Choose the [TypeScript](../../examples/pulumi/typescript/) or [Python](../../examples/pulumi/python/) example:
 
 ```sh
+# From the repository root:
+go build -o build/terraform-provider-multipass ./cmd/terraform-provider-multipass
 cd examples/pulumi/typescript
 # Or: cd examples/pulumi/python
 pulumi login --local
@@ -39,16 +41,15 @@ packages:
     source: terraform-provider
     version: 1.4.0
     parameters:
-      - registry.opentofu.org/nanofaas/multipass
-      - 2.0.0
+      - ../../../build/terraform-provider-multipass
 ```
 
-`version` selects the Pulumi bridge; the last parameter selects this Terraform provider. The explicit Terraform registry address avoids depending on an OpenTofu registry mirror.
+`version` selects the Pulumi bridge; the parameter is the provider binary path relative to the example. On Windows, build `build/terraform-provider-multipass.exe` and keep the manifest path extensionless.
 
 For an existing Pulumi project, add the same package with:
 
 ```sh
-pulumi package add terraform-provider@1.4.0 registry.opentofu.org/nanofaas/multipass 2.0.0
+pulumi package add terraform-provider@1.4.0 /absolute/path/to/terraform-provider-multipass
 pulumi install
 ```
 
@@ -167,7 +168,7 @@ pulumi preview
 
 Go creates the platform-specific executable in `bin/`. Keep the **Pulumi argument extensionless on Windows**, even though the file is `terraform-provider-multipass.exe`. Bridge 1.4.0 derives the package name from this argument; including `.exe` produces the invalid name `multipass.exe`. Do not pass a release filename containing `_vX.Y.Z` either. Windows resolves the extensionless argument to the `.exe` binary.
 
-Local packages report version `0.0.0` and retain the binary path. Keep it available when running Pulumi. Rebuild the binary for implementation changes and rerun `package add` after schema changes. Restore the published package command before sharing a project that should use registry releases.
+Local packages report version `0.0.0` and retain the binary path. Keep it available when running Pulumi. Rebuild the binary for implementation changes and rerun `package add` after schema changes. Registry installation will become available only after Nanofaas publishes a signed release and registers the provider.
 
 ## Compatibility checks
 

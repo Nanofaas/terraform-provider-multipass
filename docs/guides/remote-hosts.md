@@ -131,3 +131,11 @@ Optional settings are `ssh_user`, `ssh_port`, `ssh_identity_file` and
 `ssh_host` with `server_address`; inherited daemon addresses are ignored in SSH
 mode. No public Multipass daemon endpoint or guest routing from the workstation
 is needed. SSH must reach the host, whose CLI can reach the guest interfaces.
+
+### Interrupted SSH launches
+
+Before launching a named VM over SSH, the provider checks that the name is absent.
+If the launch connection drops or is canceled, it reports an uncertain outcome
+and retains the requested name in state. Restore connectivity and inspect the
+remote VM before retrying; refresh can then discover or remove that identity.
+Do not launch the same VM name concurrently from separate configurations.

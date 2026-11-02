@@ -121,3 +121,17 @@ class BridgeTests(unittest.TestCase):
         for address in ["8.8.8.8/24", "10.60.0.0/24", "10.60.0.255/24", "10.0.0.1/7"]:
             self.assertIn("error", self.host.execute("create", dict(self.req, address=address)))
         self.assertEqual(self.store.commands, [])
+
+    def test_creation_identity_survives_failed_readback(self):
+        original = self.host.run
+        def failed_readback(*args):
+            if self.store.profiles and args[:2] == ('nmcli', '-g'):
+                raise RuntimeError('NetworkManager unavailable after add')
+            return original(*args)
+        self.host.run = failed_readback
+        result = self.host.execute('create', self.req)
+        self.assertIn('error', result)
+        self.assertEqual(len(self.store.profiles), 1)
+        self.assertIsNotNone(result['bridge'])
+        self.assertEqual(result['bridge']['id'], self.req['id'])
+        self.assertFalse(result['bridge']['active'])

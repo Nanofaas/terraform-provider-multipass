@@ -9,5 +9,4 @@ packages:
     source: terraform-provider
     version: 1.4.0
     parameters:
-      - registry.opentofu.org/nanofaas/multipass
-      - 2.0.0
+      - ../../../build/terraform-provider-multipass

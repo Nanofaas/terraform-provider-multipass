@@ -2,11 +2,14 @@
 
 Use [TypeScript](typescript/) or [Python](python/) to create a VM, host shell alias, and uploaded greeting file through Pulumi's Terraform bridge. Both examples query LTS images and export the VM's name and IPv4 addresses.
 
-Prerequisites: Multipass 1.13+, Pulumi CLI 3.266.0, and Node.js 22+ or Python 3.10+ with pip/venv. `Pulumi.yaml` pins bridge 1.4.0 and provider 2.0.0.
+Prerequisites: Multipass 1.13+, Pulumi CLI 3.266.0, and Node.js 22+ or Python 3.10+ with pip/venv. `Pulumi.yaml` pins bridge 1.4.0 and uses the provider built from this checkout. Nanofaas registry publication is pending.
+
+From the repository root (on Windows, append `.exe` to the build output):
 
 ```sh
-cd typescript
-# Or: cd python
+go build -o build/terraform-provider-multipass ./cmd/terraform-provider-multipass
+cd examples/pulumi/typescript
+# Or: cd examples/pulumi/python
 pulumi login --local
 pulumi install
 pulumi stack init dev
