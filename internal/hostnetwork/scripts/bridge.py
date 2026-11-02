@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import uuid
+from pathlib import Path
 
 LOCK_PATH = "/run/lock/nanofaas-multipass-networks.lock"
 OWNER = "nanofaas-multipass-"
@@ -151,6 +152,31 @@ class Host:
                 # NetworkManager can remove the device after the previous query.
                 if any(x["ifname"] == found["name"] for x in self.links()):
                     raise
+
+    def check(self):
+        checks = [{"name": "python", "status": "PASS", "detail": sys.version.split()[0]}]
+        for name, args in (("networkmanager", ("nmcli", "--version")), ("iproute2", ("ip", "-Version"))):
+            try:
+                detail = self.run(*args)
+                if name == "networkmanager" and self.run("nmcli", "-g", "RUNNING", "general") != "running":
+                    raise RuntimeError("NetworkManager is not running")
+                checks.append({"name": name, "status": "PASS", "detail": detail})
+            except Exception as err:
+                checks.append({"name": name, "status": "FAIL", "detail": str(err)})
+        try:
+            filtering = Path("/proc/sys/net/bridge/bridge-nf-call-iptables").read_text().strip() == "1"
+        except FileNotFoundError:
+            filtering = False
+        if filtering:
+            try:
+                rules = self.run("iptables", "-S", "FORWARD")
+                policy = next((line for line in rules.splitlines() if line.startswith("-P ")), "policy unavailable")
+            except Exception as err:
+                policy = str(err)
+            checks.append({"name": "firewall", "status": "WARN", "detail": "Bridged IPv4 filtering is enabled; allow traffic within each private bridge. " + policy})
+        else:
+            checks.append({"name": "firewall", "status": "PASS", "detail": "Bridge IPv4 iptables filtering is disabled; other firewall backends are not inspected."})
+        return {"checks": checks}
 
     def execute(self, action, req):
         try:

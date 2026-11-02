@@ -59,6 +59,15 @@ provider "multipass" {
 
 Optional `ssh_identity_file` and `ssh_known_hosts_file` refer to files on the workstation; SSH agent and configuration are supported. In SSH mode, `multipass_path` is remote, cloud-init/upload files are local, and mount sources are server paths. Recursive SSH transfers are explicitly unsupported; single files are supported.
 
+Before applying, run the read-only host check (add `-networks` for managed bridges):
+
+```sh
+go run ./cmd/multipass-doctor -host 192.0.2.10 -user ubuntu -networks
+```
+
+See [installation and host preparation](docs/guides/installation.md) for the
+restricted helper installation and migration from the development prototype.
+
 ## Pulumi
 
 Use the provider through Pulumi's [Any Terraform Provider](https://www.pulumi.com/docs/iac/concepts/providers/any-terraform-provider/) bridge. Build the local provider before running the examples; Nanofaas registry installation is pending:

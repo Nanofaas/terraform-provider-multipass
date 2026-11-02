@@ -191,3 +191,17 @@ class BridgeTests(unittest.TestCase):
         for args,payload in [(['create'],' '*65537),(['create','unexpected'],'{}')]:
             result=subprocess.run([sys.executable,'-I',str(helper),*args],input=payload,text=True,capture_output=True,check=True)
             self.assertIn('error',json.loads(result.stdout))
+
+    def test_check_is_read_only_and_warns_about_bridge_filtering(self):
+        commands=[]
+        def read_command(*args):
+            commands.append(args)
+            responses={('nmcli','-g','RUNNING','general'):'running',('nmcli','--version'):'nmcli tool, version 1.46.0',('ip','-Version'):'ip utility',('iptables','-S','FORWARD'):'-P FORWARD DROP'}
+            return responses[args]
+        host=bridge.Host();host.run=read_command
+        with patch('pathlib.Path.read_text',return_value='1\n'):
+            result=host.execute('check',{})
+        self.assertNotIn('error',result)
+        self.assertTrue(any(c['name']=='firewall' and c['status']=='WARN' for c in result['checks']))
+        self.assertFalse(any(c['status']=='FAIL' for c in result['checks']))
+        self.assertTrue(all('add' not in c and 'delete' not in c for c in commands))

@@ -57,3 +57,21 @@ Keep the normal administrative recovery path while validating the migration.
 
 The host firewall still needs to allow traffic within each selected bridge; see
 [network prerequisites](../resources/network.md#host-firewall-prerequisites).
+
+## Read-only preflight
+
+Run the `multipass-doctor` executable from the provider release archive on your
+workstation, or build it with `go build -o build/multipass-doctor ./cmd/multipass-doctor`:
+
+```sh
+multipass-doctor -host SERVER -user SSH_USER -port 22
+multipass-doctor -host SERVER -user SSH_USER -port 22 -networks
+```
+
+The first command checks SSH/Linux, supported Multipass version and daemon
+access. `-networks` adds QEMU, installed helper protocol/sudo access,
+NetworkManager, iproute2 and bridged IPv4 filtering. It makes no configuration
+changes. FAIL returns exit status 1; WARN requires operator attention but does
+not mean the host is unusable. A firewall warning is not a connectivity test.
+Use `-identity-file`, `-known-hosts-file` and `-multipass-path` when needed;
+otherwise OpenSSH configuration and the remote CLI PATH apply.
