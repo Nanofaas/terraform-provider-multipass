@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     multipass = {
-      source  = "todoroff/multipass"
+      source = "todoroff/multipass"
     }
   }
 }
@@ -41,7 +41,7 @@ resource "multipass_file_upload" "bootstrap_script" {
 resource "multipass_file_upload" "env_file" {
   instance    = multipass_instance.demo.name
   destination = "/home/ubuntu/.demo.env"
-  content = <<-EOT
+  content     = <<-EOT
     PORT=8080
     VERSION=${var.app_version}
     DATABASE_URL=sqlite:///home/ubuntu/app/data.db
@@ -58,9 +58,9 @@ resource "multipass_file_upload" "app_bundle" {
 
 # Download the bootstrap script back to the host to demonstrate the download resource.
 resource "multipass_file_download" "bootstrap_copy" {
-  instance    = multipass_instance.demo.name
-  source      = "/home/ubuntu/bootstrap.sh"
-  destination = "${path.module}/downloads/bootstrap.sh"
+  instance       = multipass_instance.demo.name
+  source         = "/home/ubuntu/bootstrap.sh"
+  destination    = "${path.module}/downloads/bootstrap.sh"
   create_parents = true
 
   triggers = {
@@ -74,11 +74,11 @@ resource "multipass_file_download" "bootstrap_copy" {
 
 # Download the uploaded app directory to the host.
 resource "multipass_file_download" "app_bundle_copy" {
-  instance    = multipass_instance.demo.name
-  source      = "/home/ubuntu/app"
-  destination = "${path.module}/downloads/app"
-  recursive   = true
-  overwrite   = true
+  instance       = multipass_instance.demo.name
+  source         = "/home/ubuntu/app"
+  destination    = "${path.module}/downloads/app"
+  recursive      = true
+  overwrite      = true
   create_parents = true
 
   depends_on = [

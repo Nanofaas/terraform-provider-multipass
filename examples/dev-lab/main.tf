@@ -2,18 +2,18 @@ terraform {
 
   required_providers {
     multipass = {
-      source  = "todoroff/multipass"
+      source = "todoroff/multipass"
     }
   }
 }
 
 locals {
-  lab_prefix     = "lab"
-  default_image  = "lts"
-  instance_size  = { cpus = 2, memory = "2G", disk = "10G" }
-  web_size       = { cpus = 1, memory = "1G", disk = "5G" }
-  api_size       = { cpus = 2, memory = "2G", disk = "8G" }
-  db_size        = { cpus = 2, memory = "4G", disk = "20G" }
+  lab_prefix    = "lab"
+  default_image = "lts"
+  instance_size = { cpus = 2, memory = "2G", disk = "10G" }
+  web_size      = { cpus = 1, memory = "1G", disk = "5G" }
+  api_size      = { cpus = 2, memory = "2G", disk = "8G" }
+  db_size       = { cpus = 2, memory = "4G", disk = "20G" }
 }
 
 data "multipass_images" "lts" {

@@ -42,3 +42,6 @@ Ready-made Terraform configurations live under `examples/`. Start with `basic/`,
 Each scenario contains inline comments explaining how to run it; simply run `terraform init` within the example directory to pull the published provider.
 
 Refer to the README for development instructions and examples.
+
+- [Managed private networks](resources/network.md)
+- [SSH private-network example](../examples/ssh-private-network/)

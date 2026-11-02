@@ -39,3 +39,6 @@ Each Terraform scenario above contains a `main.tf` (and supporting files where n
 ## 7. `remote-hosts/`
 
 [Two remote hosts](remote-hosts/main.tf) selected through separate provider aliases. Each host gets an instance and an instance data source. Set both daemon addresses and authenticate the local CLI user with each daemon before applying; see the [remote-host guide](../docs/guides/remote-hosts.md).
+
+- [ssh-private-network](ssh-private-network/): two Linux-hosted VMs managed over
+  SSH with a persistent private bridge and static IPs.

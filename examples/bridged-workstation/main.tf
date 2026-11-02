@@ -2,7 +2,7 @@ terraform {
 
   required_providers {
     multipass = {
-      source  = "todoroff/multipass"
+      source = "todoroff/multipass"
     }
   }
 }
