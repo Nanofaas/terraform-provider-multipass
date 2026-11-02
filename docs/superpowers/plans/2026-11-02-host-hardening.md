@@ -28,32 +28,34 @@
 
 Files: internal/hostnetwork/client.go, scripts/bridge.py, their tests; scripts/install-host-helper.sh; network documentation.
 Interfaces: fixed helper path; `check` returns protocol_version and checks; every response includes protocol_version=1. Read/Create/Delete Go API unchanged.
-- [ ] Add failing tests for fixed remote commands, protocol mismatch and input/environment boundaries.
-- [ ] Implement isolated helper dispatcher, sanitized command environment and client invocation.
-- [ ] Add root-owned atomic installation and exact sudoers rules, validate before replacement.
-- [ ] Run hostnetwork tests and full Go suite; document installation/migration.
+- [x] Add failing tests for fixed remote commands, protocol mismatch and input/environment boundaries.
+- [x] Implement isolated helper dispatcher, sanitized command environment and client invocation.
+- [x] Add root-owned atomic installation and exact sudoers rules, validate before replacement.
+- [x] Run hostnetwork tests and full Go suite; document installation/migration.
 
 ### Task 2: Read-only doctor
 
 Files: cmd/multipass-doctor/main.go, internal/preflight/check.go and tests, hostnetwork check tests, README.
 Interfaces: `preflight.Run(ctx, ssh, binary, networks) []Check`; Check{Name, Status, Detail}; doctor exit 1 on FAIL, 0 otherwise.
-- [ ] Add failing fake-SSH tests for missing auth/helper, non-Linux host, protocol mismatch, firewall warning and VM-only success.
-- [ ] Implement standalone read-only command and helper health report with no mutations.
-- [ ] Run tests/vet/build and verify CLI usage, errors and successful local fixtures.
+- [x] Add failing fake-SSH tests for missing auth/helper, non-Linux host, protocol mismatch, firewall warning and VM-only success.
+- [x] Implement standalone read-only command and helper health report with no mutations.
+- [x] Run tests/vet/build and verify CLI usage, errors and successful local fixtures.
 
 ### Task 3: Signed distribution
 
 Files: .goreleaser.yml, .github/workflows/release.yml, scripts/package-host-tools.py, packaging/public-key.asc, docs/guides/installation.md.
-- [ ] Add snapshot dispatch and package provider, doctor and host tools; preserve the registry manifest format.
-- [ ] Verify snapshot artifacts in CI; create isolated dedicated signing key and repository secrets.
-- [ ] Review whole branch before merge/release; fix important findings with regressions.
-- [ ] Publish v0.1.0; download artifacts, verify signature/checksums, run released doctor/provider with a local mirror.
+- [x] Add snapshot dispatch and package provider, doctor and host tools; preserve the registry manifest format.
+- [x] Verify snapshot artifacts in CI; create isolated dedicated signing key and repository secrets.
+- [x] Review whole branch before merge/release; fix important findings with regressions.
+- [x] Publish v0.1.0; download artifacts, verify signature/checksums, run released doctor/provider with a local mirror.
 - [ ] Submit registry forms if possible; otherwise prepare exact public metadata and report the external step.
 
 ### Task 4: Host migration and completion
 
-- [ ] Inventory active users/VMs/containers; prepare concrete reboot test and request approval only for the restart.
-- [ ] Install reviewed helper; run preflight and remote network/VM acceptance with previously authorized temporary scoped firewall rule.
-- [ ] If approved, reboot with disposable resources, verify persistent network/static IPs and refresh/plan, then destroy all test resources and rule.
-- [ ] Backup/remove only named broad Python sudo rule after narrow helper verification; prove Python sudo denied and owned bridge create/read/delete succeeds.
-- [ ] Update verification record, publish documentation and verify clean remote/local state.
+- [x] Inventory active users/VMs/containers; prepare concrete reboot test and request approval only for the restart.
+- [x] Install reviewed helper; run preflight and remote network/VM acceptance with previously authorized temporary scoped firewall rule.
+- [x] If approved, reboot with disposable resources, verify persistent network/static IPs and refresh/plan, then destroy all test resources and rule.
+- [x] Backup/remove only named broad Python sudo rule after narrow helper verification; prove Python sudo denied and owned bridge create/read/delete succeeds.
+- [x] Update verification record, publish documentation and verify clean remote/local state.
+
+Registry forms are the only pending external step; browser session was stopped. Release, host migration and checks are complete, with host reboot limitations documented in the verification record.

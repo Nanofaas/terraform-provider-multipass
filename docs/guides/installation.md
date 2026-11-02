@@ -128,3 +128,31 @@ or add host boot services.
 The same host also reset its iptables FORWARD policy on boot. Configure and verify
 firewall persistence administratively; the provider and helper do not persist
 firewall rules. If nft and legacy tables coexist, inspect both separately.
+
+## Install a verified ZIP before registry enrollment
+
+A packed filesystem mirror avoids a Go toolchain. For example, on macOS ARM64,
+copy the verified ZIP without extracting it into this layout (choose the ZIP for
+your OpenTofu workstation, not the remote server):
+
+```text
+provider-mirror/
+  registry.opentofu.org/nanofaas/multipass/
+    terraform-provider-multipass_0.1.0_darwin_arm64.zip
+```
+
+Create `local.tfrc`, replacing the absolute path below:
+
+```hcl
+provider_installation {
+  filesystem_mirror {
+    path = "/absolute/path/to/provider-mirror"
+    include = ["registry.opentofu.org/nanofaas/multipass"]
+  }
+}
+```
+
+Run `TF_CLI_CONFIG_FILE="$(pwd)/local.tfrc" tofu init` from your configuration
+directory. OpenTofu labels filesystem-mirror packages unauthenticated; verify
+the GPG signature and checksums separately as described above. Extract the
+`multipass-doctor` executable from the same verified ZIP for the preflight check.

@@ -100,4 +100,30 @@ cleanup. Firewall persistence across future host boots needs administrator revie
 the provider deliberately does not manage it. Both nft and legacy tables were
 present after reboot. The doctor reports the selected iptables backend only.
 
-Signed release verification follows after publication.
+## Signed release
+
+Release [v0.1.0](https://github.com/Nanofaas/terraform-provider-multipass/releases/tag/v0.1.0)
+was published only after artifact and signature validation:
+https://github.com/Nanofaas/terraform-provider-multipass/actions/runs/41446446434
+Final Linux/macOS/Windows CI also passed:
+https://github.com/Nanofaas/terraform-provider-multipass/actions/runs/41446455144
+
+All published assets were downloaded independently. Their checksums, six platform
+archive layouts, host tools and registry manifest passed verification. GPG checked
+the detached signature in a fresh public-key-only keyring against fingerprint
+`BC1D2E34BCE6C30673A5CAA4FE32DA979EF37C37`. The released host helper matches the
+installed and tested helper SHA256
+`8a77d33bc0aa69569ce128c460c5e88b89dfec93079b0724c9c8815677ef44a1`.
+
+The published darwin/arm64 ZIP was installed through a packed filesystem mirror;
+OpenTofu init, validate and provider schema succeeded. The released doctor passed
+against the host, retaining the expected FORWARD DROP warning. Mirror installation
+is reported by OpenTofu as unauthenticated; GPG verification was performed
+separately before executing the artifacts.
+
+The dedicated private signing key and passphrase were uploaded to repository
+Actions secrets only after explicit authorization. No private material is tracked.
+Registry enrollment remains pending: public organization membership is verified,
+but the required browser issue forms have not been submitted because the user
+stopped the browser session. This is an external enrollment step, not a release
+or provider installation failure.
