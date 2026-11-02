@@ -1,0 +1,123 @@
+import importlib.util
+import json
+import tempfile
+import threading
+import time
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+spec = importlib.util.spec_from_file_location("bridge", Path(__file__).with_name("bridge.py"))
+bridge = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bridge)
+
+class Store:
+    def __init__(self):
+        self.profiles = {}
+        self.links = []
+        self.commands = []
+        self.fail_up = False
+        self.routes = [{"dst": "default", "gateway": "192.0.2.1"}]
+
+class FakeHost(bridge.Host):
+    def __init__(self, store):
+        self.store = store
+
+    def run(self, *args):
+        s = self.store
+        s.commands.append(args)
+        if args[:4] == ("ip", "-j", "-d", "address"):
+            return json.dumps(s.links)
+        if args[:4] == ("ip", "-j", "-4", "route"):
+            return json.dumps(s.routes)
+        if args[:3] == ("nmcli", "-g", "UUID"):
+            return "\n".join(s.profiles)
+        if args[:2] == ("nmcli", "-g"):
+            p = s.profiles[args[-1]]
+            fields = args[2]
+            if fields == "ipv4.addresses": return p["address"]
+            if fields == "connection.interface-name": return p["name"]
+            return "\n".join(["nanofaas-multipass-" + p["name"], p["name"], p["address"], "bridge", p["owner"]])
+        if args[:3] == ("nmcli", "connection", "add"):
+            values = dict(zip(args[3::2], args[4::2]))
+            ident = values["connection.uuid"]
+            s.profiles[ident] = {"name": values["ifname"], "address": values["ipv4.addresses"], "owner": values["user.data"]}
+            time.sleep(0.02)
+            return ""
+        if args[:3] == ("nmcli", "connection", "up"):
+            if s.fail_up: raise RuntimeError("activation failed")
+            ident = args[-1]; p = s.profiles[ident]
+            ip, prefix = p["address"].split("/")
+            s.links.append({"ifname": p["name"], "ifindex": 9, "flags": ["UP"], "linkinfo": {"info_kind": "bridge"}, "addr_info": [{"family": "inet", "local": ip, "prefixlen": int(prefix)}]})
+            return ""
+        if args[:4] == ("ip", "link", "set", "dev"):
+            next(x for x in s.links if x["ifname"] == args[4])["ifalias"] = args[6]
+            return ""
+        if args[:3] == ("nmcli", "connection", "delete"):
+            p=s.profiles.pop(args[-1]); s.links[:]=[x for x in s.links if x["ifname"]!=p["name"]]; return ""
+        if args[:4] == ("ip", "link", "delete", "dev"):
+            s.links[:]=[x for x in s.links if x["ifname"]!=args[4]]; return ""
+        raise AssertionError(args)
+
+class BridgeTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        patcher = patch.object(bridge, "LOCK_PATH", str(Path(self.tmp.name) / "lock"))
+        patcher.start(); self.addCleanup(patcher.stop)
+        self.store = Store(); self.host = FakeHost(self.store)
+        self.req = {"id": "afc40530-1111-4111-8111-111111111111", "name": "nf-test", "address": "10.60.0.1/24"}
+
+    def test_lifecycle_and_activation_failure(self):
+        self.store.fail_up = True
+        result = self.host.execute("create", self.req)
+        self.assertIn("activation failed", result["error"])
+        self.assertEqual(result["bridge"]["id"], self.req["id"])
+        self.assertEqual(len(self.store.profiles), 1)
+        self.store.fail_up = False
+        self.assertFalse(self.host.execute("read", self.req)["bridge"]["active"])
+        self.assertNotIn("error", self.host.execute("delete", self.req))
+        self.assertNotIn("error", self.host.execute("delete", self.req))
+        self.assertEqual(self.store.profiles, {})
+
+    def test_ownership_and_ports(self):
+        self.assertNotIn("error", self.host.execute("create", self.req))
+        self.assertTrue(self.host.execute("read", self.req)["bridge"]["active"])
+        self.store.links.append({"ifname": "tap1", "master": 9})
+        self.assertIn("attached", self.host.execute("delete", self.req)["error"])
+        self.store.links.pop()
+        self.store.profiles[self.req["id"]]["owner"] = "other.owner=someone"
+        self.assertIn("owned", self.host.execute("delete", self.req)["error"])
+        self.assertEqual(len(self.store.profiles), 1)
+
+    def test_overlap_and_foreign_interface(self):
+        self.store.routes.append({"dst": "10.60.0.0/16"})
+        self.assertIn("overlap", self.host.execute("create", self.req)["error"])
+        self.assertEqual(self.store.profiles, {})
+        self.store.routes.pop()
+        self.store.links.append({"ifname": "nf-test", "ifindex": 8, "addr_info": []})
+        self.assertIn("exists", self.host.execute("create", self.req)["error"])
+
+    def test_concurrent_creation(self):
+        results = []
+        def create(n):
+            req = dict(self.req, id=f"afc40530-1111-4111-8111-{n:012d}", name=f"nf-{n}")
+            results.append(FakeHost(self.store).execute("create", req))
+        workers = [threading.Thread(target=create, args=(i,)) for i in (1, 2)]
+        for worker in workers: worker.start()
+        for worker in workers: worker.join()
+        self.assertEqual(sum("error" not in r for r in results), 1)
+        self.assertEqual(len(self.store.profiles), 1)
+
+    def test_orphan_recovery_and_missing(self):
+        self.assertNotIn("error", self.host.execute("create", self.req))
+        self.store.profiles.clear()
+        self.assertFalse(self.host.execute("read", self.req)["bridge"]["active"])
+        self.assertNotIn("error", self.host.execute("delete", self.req))
+        self.assertEqual(self.store.links, [])
+        self.assertTrue(self.host.execute("read", self.req)["missing"])
+
+    def test_invalid_input_does_not_execute_commands(self):
+        for address in ["8.8.8.8/24", "10.60.0.0/24", "10.60.0.255/24", "10.0.0.1/7"]:
+            self.assertIn("error", self.host.execute("create", dict(self.req, address=address)))
+        self.assertEqual(self.store.commands, [])

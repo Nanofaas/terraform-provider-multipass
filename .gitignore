@@ -34,3 +34,5 @@ examples/pulumi/**/Pulumi.*.yaml
 
 .worktrees/
 .superpowers/
+__pycache__/
+*.pyc
