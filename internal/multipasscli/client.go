@@ -13,7 +13,10 @@ import (
 	"time"
 
 	"github.com/todoroff/terraform-provider-multipass/internal/models"
+	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
 )
+
+var missingInstance = regexp.MustCompile(`(?i)(instance|snapshot) [^\n]+ (does not exist|not found)`)
 
 // ansiRegex matches ANSI escape sequences (CSI codes, cursor movement, etc.)
 // emitted by the Multipass CLI on Windows.
@@ -53,12 +56,14 @@ type Client interface {
 
 // Config controls the multipass CLI client instantiation.
 type Config struct {
+	SSH           *sshclient.Client
 	BinaryPath    string
 	Timeout       int    // Seconds
 	ServerAddress string // Overrides MULTIPASS_SERVER_ADDRESS for this client's subprocesses when non-empty.
 }
 
 type client struct {
+	ssh           *sshclient.Client
 	binaryPath    string
 	timeout       time.Duration
 	serverAddress string
@@ -98,7 +103,7 @@ func NewClient(ctx context.Context, cfg Config) (Client, error) {
 		binary = "multipass"
 	}
 
-	if !strings.Contains(binary, "/") && !strings.Contains(binary, "\\") {
+	if cfg.SSH == nil && !strings.Contains(binary, "/") && !strings.Contains(binary, "\\") {
 		// Look up in PATH to produce early errors.
 		if _, err := exec.LookPath(binary); err != nil {
 			return nil, fmt.Errorf("unable to find multipass binary %q in PATH: %w", binary, err)
@@ -111,6 +116,7 @@ func NewClient(ctx context.Context, cfg Config) (Client, error) {
 	}
 
 	return &client{
+		ssh:           cfg.SSH,
 		binaryPath:    binary,
 		timeout:       timeout,
 		serverAddress: cfg.ServerAddress,
@@ -617,38 +623,49 @@ func (c *client) runWithStdin(ctx context.Context, stdin []byte, args ...string)
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(ctx, c.binaryPath, args...)
-	if c.serverAddress != "" {
-		// Set only the child environment so provider aliases can target different
-		// daemons concurrently. os/exec uses the last value for duplicate keys
-		// (case-insensitively on Windows), preserving the rest of the environment.
-		cmd.Env = append(cmd.Environ(), "MULTIPASS_SERVER_ADDRESS="+c.serverAddress)
-	}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if stdin != nil {
-		cmd.Stdin = bytes.NewReader(stdin)
+	var outBytes, errBytes []byte
+	var err error
+	if c.ssh != nil {
+		remoteArgs := append([]string{"env", "-u", "MULTIPASS_SERVER_ADDRESS", c.binaryPath}, args...)
+		outBytes, errBytes, err = c.ssh.Run(ctx, stdin, remoteArgs...)
+	} else {
+		cmd := exec.CommandContext(ctx, c.binaryPath, args...)
+		if c.serverAddress != "" {
+			cmd.Env = append(cmd.Environ(), "MULTIPASS_SERVER_ADDRESS="+c.serverAddress)
+		}
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if stdin != nil {
+			cmd.Stdin = bytes.NewReader(stdin)
+		}
+		err = cmd.Run()
+		outBytes = stdout.Bytes()
+		errBytes = stderr.Bytes()
 	}
 
-	err := cmd.Run()
 	if err == nil {
-		return stdout.Bytes(), nil
+		return outBytes, nil
 	}
 
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("%w: %s", ErrTimeout, strings.Join(args, " "))
 	}
 
-	stdoutStr := strings.TrimSpace(ansiRegex.ReplaceAllString(stdout.String(), ""))
-	stderrStr := strings.TrimSpace(ansiRegex.ReplaceAllString(stderr.String(), ""))
+	stdoutStr := strings.TrimSpace(ansiRegex.ReplaceAllString(string(outBytes), ""))
+	stderrStr := strings.TrimSpace(ansiRegex.ReplaceAllString(string(errBytes), ""))
 
-	if strings.Contains(stderrStr, "does not exist") || strings.Contains(stderrStr, "not found") {
+	var exitErr *exec.ExitError
+	transportFailure := c.ssh != nil && errors.As(err, &exitErr) && (exitErr.ExitCode() == 255 || exitErr.ExitCode() == 126 || exitErr.ExitCode() == 127)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if !transportFailure && missingInstance.MatchString(stderrStr) {
 		return nil, fmt.Errorf("%w: %s", ErrNotFound, stderrStr)
 	}
 
 	// Detect Multipass CLI's own --timeout errors
-	if isTimeoutError(stderrStr) {
+	if !transportFailure && isTimeoutError(stderrStr) {
 		return nil, fmt.Errorf("%w: %s", ErrTimeout, stderrStr)
 	}
 

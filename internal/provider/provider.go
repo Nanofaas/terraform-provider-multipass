@@ -3,8 +3,10 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/todoroff/terraform-provider-multipass/internal/sshclient"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,6 +60,11 @@ func (p *MultipassProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 	resp.Schema = schema.Schema{
 		Description: "Provider for managing Canonical Multipass resources via the Multipass CLI.",
 		Attributes: map[string]schema.Attribute{
+			"ssh_host":             schema.StringAttribute{Optional: true, Description: "Linux host IP or SSH configuration alias. Runs Multipass on this host over verified SSH."},
+			"ssh_user":             schema.StringAttribute{Optional: true, Description: "SSH login user; defaults to OpenSSH configuration."},
+			"ssh_port":             schema.Int64Attribute{Optional: true, Description: "SSH port (1–65535); defaults to OpenSSH configuration."},
+			"ssh_identity_file":    schema.StringAttribute{Optional: true, Description: "Local SSH private key path; otherwise use SSH configuration or agent."},
+			"ssh_known_hosts_file": schema.StringAttribute{Optional: true, Description: "Local known_hosts path; host key verification is always required."},
 			"multipass_path": schema.StringAttribute{
 				Optional:            true,
 				Description:         "Path to the multipass binary. Defaults to the first multipass found in PATH.",
@@ -96,6 +103,26 @@ func (p *MultipassProvider) Configure(ctx context.Context, req provider.Configur
 		return
 	}
 
+	sshCfg, err := readSSHConfig(config, false)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid SSH configuration", err.Error())
+		return
+	}
+	var ssh *sshclient.Client
+	if sshCfg != nil {
+		ssh, err = sshclient.New(*sshCfg)
+		if err != nil {
+			resp.Diagnostics.AddError("Unable to configure SSH", err.Error())
+			return
+		}
+		checkCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		out, stderr, checkErr := ssh.Run(checkCtx, nil, "uname", "-s")
+		cancel()
+		if checkErr != nil || strings.TrimSpace(string(out)) != "Linux" {
+			resp.Diagnostics.AddError("Unable to verify Linux SSH host", fmt.Sprintf("Expected Linux from uname: %s; %s; %v", out, stderr, checkErr))
+			return
+		}
+	}
 	cfg := providerConfig{
 		BinaryPath:     defaultBinaryName,
 		DefaultImage:   "",
@@ -136,6 +163,7 @@ func (p *MultipassProvider) Configure(ctx context.Context, req provider.Configur
 
 	client, err := multipasscli.NewClient(ctx, multipasscli.Config{
 		BinaryPath:    cfg.BinaryPath,
+		SSH:           ssh,
 		Timeout:       cfg.CommandTimeout,
 		ServerAddress: cfg.ServerAddress,
 	})
@@ -164,6 +192,7 @@ func (p *MultipassProvider) Configure(ctx context.Context, req provider.Configur
 	p.mu.Unlock()
 
 	resp.ResourceData = providerData{
+		ssh:            ssh,
 		client:         client,
 		defaultImage:   cfg.DefaultImage,
 		hostOS:         p.hostOS,

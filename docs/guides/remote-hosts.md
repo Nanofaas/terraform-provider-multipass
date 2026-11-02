@@ -117,3 +117,17 @@ Changing `server_address` redirects refresh, apply, import, and destroy to a dif
 - Network names refer to the selected daemon's host. Query `multipass_networks` with the same provider alias to find those names.
 - Mounts follow Multipass's own behavior: the CLI validates the source path locally, and the daemon uses the supplied path for the mount. Remote mode does not copy or export a local directory to the daemon host. Prefer file uploads when the machines do not share the required filesystem layout.
 - Multipass command aliases and `primary = true` remain local CLI settings shared by the OS user. Provider aliases do not isolate those settings. Use unique command-alias names across hosts, and set `MULTIPASS_SERVER_ADDRESS` to the correct daemon when invoking a saved command alias outside Terraform.
+
+## Linux servers over SSH (Nanofaas)
+
+Set `ssh_host` to run the CLI on a Linux server. The workstation needs OpenSSH,
+not a local Multipass installation. Authenticate the remote user with Multipass
+on that server first. Verify and enroll the server's SSH host key in
+`known_hosts` before using the provider. Agent keys and SSH configuration are
+supported; agent forwarding is disabled and host key verification is mandatory.
+Optional settings are `ssh_user`, `ssh_port`, `ssh_identity_file` and
+`ssh_known_hosts_file`. Key-file paths are local; do not embed key contents.
+`multipass_path` is the remote binary path in SSH mode. Do not combine
+`ssh_host` with `server_address`; inherited daemon addresses are ignored in SSH
+mode. No public Multipass daemon endpoint or guest routing from the workstation
+is needed. SSH must reach the host, whose CLI can reach the guest interfaces.

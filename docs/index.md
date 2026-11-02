@@ -54,3 +54,11 @@ Use `server_address` and Terraform provider aliases to manage multiple hosts. Th
 - [`multipass_networks`](data-sources/networks.md) – List host bridge targets.
 - [`multipass_instance`](data-sources/instance.md) – Inspect existing Multipass instances.
 - [`multipass_snapshots`](data-sources/snapshots.md) – List snapshots for an instance.
+
+## Linux SSH hosts
+
+`ssh_host` selects execution on a Linux server using OpenSSH. Optional
+`ssh_user`, `ssh_port`, `ssh_identity_file`, and `ssh_known_hosts_file` customize
+the connection. Host keys must be trusted beforehand. The server must already
+have Multipass installed and authorized for the SSH user. See the
+[remote host guide](guides/remote-hosts.md).
