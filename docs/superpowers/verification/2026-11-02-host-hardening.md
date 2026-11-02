@@ -123,7 +123,12 @@ separately before executing the artifacts.
 
 The dedicated private signing key and passphrase were uploaded to repository
 Actions secrets only after explicit authorization. No private material is tracked.
-Registry enrollment remains pending: public organization membership is verified,
-but the required browser issue forms have not been submitted because the user
-stopped the browser session. This is an external enrollment step, not a release
-or provider installation failure.
+Both required registry submissions were made through GitHub's official browser
+issue forms on 2026-11-02. Public organization membership was verified.
+The [key submission #6240](https://github.com/opentofu/registry/issues/6240)
+passed validation and its [PR #6241](https://github.com/opentofu/registry/pull/6241)
+was merged. The [provider submission #6242](https://github.com/opentofu/registry/issues/6242)
+passed validation and generated [PR #6243](https://github.com/opentofu/registry/pull/6243),
+which is awaiting merge. The registry versions endpoint still returned HTTP 404
+at this check. Direct registry installation must be verified after approval and
+publication; the signed release/local mirror remains usable meanwhile.

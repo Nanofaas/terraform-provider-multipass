@@ -48,7 +48,7 @@ Files: .goreleaser.yml, .github/workflows/release.yml, scripts/package-host-tool
 - [x] Verify snapshot artifacts in CI; create isolated dedicated signing key and repository secrets.
 - [x] Review whole branch before merge/release; fix important findings with regressions.
 - [x] Publish v0.1.0; download artifacts, verify signature/checksums, run released doctor/provider with a local mirror.
-- [ ] Submit registry forms if possible; otherwise prepare exact public metadata and report the external step.
+- [x] Submit registry forms if possible; otherwise prepare exact public metadata and report the external step.
 
 ### Task 4: Host migration and completion
 
@@ -58,4 +58,4 @@ Files: .goreleaser.yml, .github/workflows/release.yml, scripts/package-host-tool
 - [x] Backup/remove only named broad Python sudo rule after narrow helper verification; prove Python sudo denied and owned bridge create/read/delete succeeds.
 - [x] Update verification record, publish documentation and verify clean remote/local state.
 
-Registry forms are the only pending external step; browser session was stopped. Release, host migration and checks are complete, with host reboot limitations documented in the verification record.
+Registry forms were submitted: key issue #6240 / merged PR #6241 and validated provider issue #6242 / open PR #6243. Provider PR merge and registry publication remain external steps. Release, host migration and checks are complete, with host reboot limitations documented in the verification record.
