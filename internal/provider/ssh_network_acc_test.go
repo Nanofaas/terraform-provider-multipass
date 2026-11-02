@@ -154,7 +154,7 @@ resource "multipass_network" "lab" {
 			if _, err := hostnetwork.New(ssh).Read(ctx, id); err != nil {
 				t.Fatal(err)
 			}
-			_, stderr, err := ssh.Run(ctx, nil, "sudo", "-n", "--", "nmcli", "connection", "down", "uuid", id)
+			_, stderr, err := ssh.Run(ctx, nil, "sudo", "-n", "--", "python3", "-c", `import subprocess,sys; subprocess.run(["nmcli","connection","down","uuid",sys.argv[1]],check=True)`, id)
 			if err != nil {
 				t.Fatalf("disable owned test bridge: %v %s", err, stderr)
 			}

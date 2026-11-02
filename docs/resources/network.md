@@ -31,6 +31,8 @@ Physical interfaces are not added to the bridge, and no default routes, DHCP,
 DNS, NAT or firewall rules are created. Overlapping host subnets and routes are
 rejected. A host-wide lock serializes this provider's network mutations.
 Existing NetworkManager profiles and unrelated interfaces are never adopted.
+Ownership is recorded in `connection.stable-id` as `nanofaas-multipass-<UUID>`,
+which is supported by NetworkManager 1.46 bridges.
 
 Multipass retains its default management/NAT interface. These private bridges
 are additional L2 segments, **not isolation boundaries between VMs**. Guest IPs

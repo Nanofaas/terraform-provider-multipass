@@ -7,10 +7,11 @@ import re
 import stat
 import subprocess
 import sys
+import time
 import uuid
 
 LOCK_PATH = "/run/lock/nanofaas-multipass-networks.lock"
-OWNER = "org.nanofaas.multipass.owner=terraform-provider-multipass"
+OWNER = "nanofaas-multipass-"
 ALIAS = "nanofaas-multipass:"
 PRIVATE = tuple(ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 
@@ -41,12 +42,12 @@ class Host:
         return self.run("nmcli", "-g", "UUID", "connection", "show").splitlines()
 
     def profile(self, ident):
-        values = self.run("nmcli", "-g", "connection.id,connection.interface-name,ipv4.addresses,connection.type,user.data",
+        values = self.run("nmcli", "-g", "connection.id,connection.interface-name,ipv4.addresses,connection.type,connection.stable-id",
                           "connection", "show", "uuid", ident).splitlines()
         if len(values) != 5:
             raise RuntimeError("unexpected NetworkManager bridge profile output")
         _, name, address, kind, owner = values
-        if kind != "bridge" or OWNER not in [re.sub(r"\s+", "", item) for item in owner.split(",")]:
+        if kind != "bridge" or owner != OWNER + ident:
             raise RuntimeError("connection is not owned by this provider")
         validate(name, address)
         return {"id": ident, "name": name, "address": address, "active": False}
@@ -114,13 +115,18 @@ class Host:
         self.run("nmcli", "connection", "add", "type", "bridge", "ifname", req["name"],
                  "con-name", "nanofaas-multipass-" + req["name"], "connection.uuid", req["id"],
                  "connection.autoconnect", "yes", "bridge.stp", "no", "ipv4.method", "manual",
-                 "ipv4.addresses", str(ip), "ipv4.never-default", "yes", "ipv6.method", "disabled", "user.data", OWNER)
+                 "ipv4.addresses", str(ip), "ipv4.never-default", "yes", "ipv6.method", "disabled", "connection.stable-id", OWNER + req["id"])
         self.run("nmcli", "connection", "up", "uuid", req["id"])
         self.run("ip", "link", "set", "dev", req["name"], "alias", ALIAS + req["id"])
-        result = self.read(req["id"])
-        if not result or not result["active"]:
-            raise RuntimeError("bridge activation did not produce the expected address")
-        return result
+        # nmcli can return while a portless bridge is still assigning its address.
+        deadline = time.monotonic() + 30
+        while True:
+            result = self.read(req["id"])
+            if result and result["active"]:
+                return result
+            if time.monotonic() >= deadline:
+                raise RuntimeError("bridge activation did not produce the expected address within 30 seconds")
+            time.sleep(0.2)
 
     def delete(self, ident):
         found = self.read(ident)
@@ -138,7 +144,12 @@ class Host:
         if remaining:
             if remaining.get("ifalias") != ALIAS + ident:
                 raise RuntimeError("remaining interface ownership cannot be proven; retained")
-            self.run("ip", "link", "delete", "dev", found["name"])
+            try:
+                self.run("ip", "link", "delete", "dev", found["name"])
+            except RuntimeError:
+                # NetworkManager can remove the device after the previous query.
+                if any(x["ifname"] == found["name"] for x in self.links()):
+                    raise
 
     def execute(self, action, req):
         self.pending = None

@@ -39,9 +39,11 @@ class FakeHost(bridge.Host):
             if fields == "connection.interface-name": return p["name"]
             return "\n".join(["nanofaas-multipass-" + p["name"], p["name"], p["address"], "bridge", p["owner"]])
         if args[:3] == ("nmcli", "connection", "add"):
+            if "user.data" in args:
+                raise RuntimeError("NetworkManager 1.46 bridge does not support user.data")
             values = dict(zip(args[3::2], args[4::2]))
             ident = values["connection.uuid"]
-            s.profiles[ident] = {"name": values["ifname"], "address": values["ipv4.addresses"], "owner": values["user.data"]}
+            s.profiles[ident] = {"name": values["ifname"], "address": values["ipv4.addresses"], "owner": values["connection.stable-id"]}
             time.sleep(0.02)
             return ""
         if args[:3] == ("nmcli", "connection", "up"):
@@ -135,3 +137,34 @@ class BridgeTests(unittest.TestCase):
         self.assertIsNotNone(result['bridge'])
         self.assertEqual(result['bridge']['id'], self.req['id'])
         self.assertFalse(result['bridge']['active'])
+
+    def test_wait_for_address_after_nmcli_up(self):
+        original = self.host.run
+        delayed = [True]
+        def lagging_address(*args):
+            result = original(*args)
+            if args[:4] == ('ip', '-j', '-d', 'address') and self.store.links and delayed[0]:
+                delayed[0] = False
+                links = json.loads(result)
+                links[0]['addr_info'] = []
+                return json.dumps(links)
+            return result
+        self.host.run = lagging_address
+        result = self.host.execute('create', self.req)
+        self.assertNotIn('error', result)
+        self.assertTrue(result['bridge']['active'])
+
+    def test_delete_when_networkmanager_removes_link_asynchronously(self):
+        self.assertNotIn('error', self.host.execute('create', self.req))
+        original = self.host.run
+        def asynchronous_removal(*args):
+            if args[:3] == ('nmcli', 'connection', 'delete'):
+                self.store.profiles.pop(args[-1])
+                return ''
+            if args[:4] == ('ip', 'link', 'delete', 'dev'):
+                self.store.links.clear()
+                raise RuntimeError('Cannot find device')
+            return original(*args)
+        self.host.run = asynchronous_removal
+        self.assertNotIn('error', self.host.execute('delete', self.req))
+        self.assertEqual(self.store.links, [])
