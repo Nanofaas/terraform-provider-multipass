@@ -38,6 +38,30 @@ Multipass retains its default management/NAT interface. These private bridges
 are additional L2 segments, **not isolation boundaries between VMs**. Guest IPs
 are not automatically reachable from the OpenTofu workstation.
 
+## Host firewall prerequisites
+
+The server firewall must permit traffic between guest ports on the bridge.
+If `net.bridge.bridge-nf-call-iptables=1`, even traffic within one bridge passes
+through the host's IPv4 forwarding rules. A `FORWARD DROP` policy, common on
+Docker hosts, can therefore block guest-to-guest communication despite correct
+static addresses. The provider does not override that policy.
+
+An administrator can allow only the example bridge with this runtime rule:
+
+```sh
+sudo iptables -I FORWARD 1 -i nf-lab -o nf-lab -m comment --comment nanofaas-nf-lab -j ACCEPT
+```
+
+Remove the same rule after destroying that network:
+
+```sh
+sudo iptables -D FORWARD -i nf-lab -o nf-lab -m comment --comment nanofaas-nf-lab -j ACCEPT
+```
+
+Use the server's existing firewall management for persistence and equivalent
+rules on other firewall backends. These commands are administrator setup, not
+operations performed by the provider.
+
 ## Schema
 
 ### Required

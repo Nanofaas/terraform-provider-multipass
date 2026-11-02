@@ -10,6 +10,13 @@
 
 **Spec:** [Linux SSH and networks design](../specs/2026-11-02-linux-ssh-networks-design.md).
 
+## Execution record
+
+Implementation and public fork delivery are complete. See the
+[verification record](../verification/2026-11-02-linux-ssh-networks.md) for tests,
+live-host findings, implementation adjustments and the remaining firewall-dependent
+ping check. The checklist below records the original plan.
+
 ## Global Constraints
 
 - Upstream baseline: `todoroff/terraform-provider-multipass` at `1dc6c0a7959c87faf6540e5c7c3a48738cd68088`; preserve history, MIT license and attribution.

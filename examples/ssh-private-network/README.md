@@ -16,7 +16,9 @@ tofu apply -var='ssh_host=192.0.2.10' -var='ssh_user=ubuntu'
 ```
 
 Choose a `subnet` that does not overlap existing server networks/routes.
-Change `ssh_port` when needed; key files and ProxyJump can be configured in
+Ensure the host firewall permits forwarding within `nf-lab`; see the
+[firewall prerequisites](../../docs/resources/network.md#host-firewall-prerequisites),
+especially on Docker hosts. Change `ssh_port` when needed; key files and ProxyJump can be configured in
 OpenSSH. Names in this example are fixed, so use a separate name prefix if
 running multiple copies on the same host.
 
