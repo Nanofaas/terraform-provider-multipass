@@ -140,6 +140,9 @@ class Host:
                 raise RuntimeError("interface is not owned by this provider")
             if any(x.get("master") in (link.get("ifindex"), link["ifname"]) for x in self.links()):
                 raise RuntimeError("bridge has attached ports; destroy or detach the VMs first")
+            # Restore the volatile marker before deleting the persistent ownership proof.
+            if not link.get("ifalias"):
+                self.run("ip", "link", "set", "dev", found["name"], "alias", ALIAS + ident)
         if ident in self.profiles():
             self.run("nmcli", "connection", "delete", "uuid", ident)
         remaining = next((x for x in self.links() if x["ifname"] == found["name"]), None)

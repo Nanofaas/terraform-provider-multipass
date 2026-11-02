@@ -32,6 +32,8 @@ class FakeHost(bridge.Host):
             return json.dumps(s.routes)
         if args[:3] == ("nmcli", "-g", "UUID"):
             return "\n".join(s.profiles)
+        if args[:3] == ("nmcli", "-g", "GENERAL.CON-UUID"):
+            return next(ident for ident,p in s.profiles.items() if p['name']==args[-1])
         if args[:2] == ("nmcli", "-g"):
             p = s.profiles[args[-1]]
             fields = args[2]
@@ -175,6 +177,22 @@ class BridgeTests(unittest.TestCase):
             self.assertIn('error', result)
             self.assertEqual(self.store.commands, [])
         self.assertEqual(self.host.execute('read', self.req).get('protocol_version'), 1)
+
+    def test_delete_after_reboot_with_delayed_interface_removal(self):
+        self.assertNotIn('error', self.host.execute('create', self.req))
+        self.store.links[0].pop('ifalias')
+        original = self.host.run
+        def delayed_removal(*args):
+            if args[:3] == ('nmcli', 'connection', 'delete'):
+                self.store.profiles.pop(args[-1])
+                return ''
+            return original(*args)
+        self.host.run = delayed_removal
+        self.assertTrue(self.host.execute('read', self.req)['bridge']['active'])
+        self.assertNotIn('ifalias', self.store.links[0])
+        self.assertNotIn('error', self.host.execute('delete', self.req))
+        self.assertEqual(self.store.links, [])
+        self.assertEqual(self.store.profiles, {})
 
     def test_subprocess_environment_is_not_user_controlled(self):
         import os, subprocess
